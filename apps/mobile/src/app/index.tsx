@@ -229,6 +229,7 @@ export default function TelaMapa() {
           </ScrollView>
         )}
         {destino && !carregando && <Botao titulo="Atualizar recomendação" variante="secundario" onPress={() => recomendar(filtrosAtuais)} />}
+        <Text style={estilos.credito}>Traçado das vagas de rua © colaboradores do OpenStreetMap</Text>
       </View>
     </View>
   );
@@ -279,6 +280,7 @@ const estilos = StyleSheet.create({
   faixaSessaoTexto: { color: '#fff', fontWeight: '600', textAlign: 'center' },
   erro: { color: cores.ocupada, fontSize: 14 },
   nota: { color: cores.suave, fontSize: 14 },
+  credito: { color: cores.suave, fontSize: 11, textAlign: 'center' },
   item: { flexDirection: 'row', gap: 10, padding: 10, borderRadius: 10, backgroundColor: cores.fundo },
   indicador: { width: 6, borderRadius: 3 },
   itemNome: { fontSize: 15, fontWeight: '700', color: cores.texto },

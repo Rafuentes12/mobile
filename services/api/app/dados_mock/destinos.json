@@ -1,10 +1,10 @@
 [
-  { "id": "d-01", "nome": "Praça Tiradentes", "endereco": "Centro, Curitiba", "lat": -25.4296, "lng": -49.2706 },
-  { "id": "d-02", "nome": "Boca Maldita", "endereco": "R. XV de Novembro, Centro, Curitiba", "lat": -25.4316, "lng": -49.2747 },
-  { "id": "d-03", "nome": "Praça Rui Barbosa", "endereco": "Centro, Curitiba", "lat": -25.4357, "lng": -49.2763 },
-  { "id": "d-04", "nome": "Praça Osório", "endereco": "Centro, Curitiba", "lat": -25.4338, "lng": -49.2797 },
-  { "id": "d-05", "nome": "Teatro Guaíra", "endereco": "Praça Santos Andrade, Centro, Curitiba", "lat": -25.4327, "lng": -49.2679 },
-  { "id": "d-06", "nome": "Shopping Pátio Batel", "endereco": "Av. do Batel, Batel, Curitiba", "lat": -25.4439, "lng": -49.2893 },
-  { "id": "d-07", "nome": "Av. do Batel", "endereco": "Batel, Curitiba", "lat": -25.4420, "lng": -49.2875 },
-  { "id": "d-08", "nome": "Praça do Japão", "endereco": "Água Verde, Curitiba (fora da área do piloto)", "lat": -25.4478, "lng": -49.2963 }
+  { "id": "d-01", "nome": "Praça Tiradentes", "endereco": "Centro, Curitiba", "lat": -25.4297, "lng": -49.2717 },
+  { "id": "d-02", "nome": "Boca Maldita", "endereco": "R. XV de Novembro, Centro, Curitiba", "lat": -25.4322, "lng": -49.2743 },
+  { "id": "d-03", "nome": "Praça Rui Barbosa", "endereco": "Centro, Curitiba", "lat": -25.4357, "lng": -49.2733 },
+  { "id": "d-04", "nome": "Praça Osório", "endereco": "Centro, Curitiba", "lat": -25.4330, "lng": -49.2765 },
+  { "id": "d-05", "nome": "Teatro Guaíra", "endereco": "Praça Santos Andrade, Centro, Curitiba", "lat": -25.4281, "lng": -49.2651 },
+  { "id": "d-06", "nome": "Shopping Pátio Batel", "endereco": "Av. do Batel, Batel, Curitiba", "lat": -25.4430, "lng": -49.2909 },
+  { "id": "d-07", "nome": "Praça do Japão", "endereco": "Água Verde, Curitiba", "lat": -25.4458, "lng": -49.2874 },
+  { "id": "d-08", "nome": "Jardim Botânico", "endereco": "Jardim Botânico, Curitiba (fora da área do piloto)", "lat": -25.4418, "lng": -49.2387 }
 ]

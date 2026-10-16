@@ -4,14 +4,15 @@ Esqueleto do app de vagas de estacionamento em tempo real para Curitiba, seguind
 [planejamento técnico](../Planejamento_Tecnico_VagaCerta.md).
 
 > **Tudo é mockado.** Estacionamentos, preços e ocupação são fictícios (nomes com "Demo").
-> Os nomes de rua são reais, com coordenadas aproximadas. Nenhum pagamento é cobrado.
+> Os trechos de rua seguem o traçado real do OpenStreetMap; quais trechos têm EstaR, e quantas vagas, ainda é fictício. Nenhum pagamento é cobrado.
 > Nada é publicado nas lojas: o app roda no **Expo Go**.
 
 ## Estrutura
 
 ```
 vagacerta/
-├── apps/mobile     # App do motorista — Expo SDK 58 + Expo Router + react-native-maps
+├── apps/mobile     # App do motorista — Expo SDK 57 + Expo Router + react-native-maps
+                    #   (SDK 57 porque é o que o Expo Go da App Store suporta hoje)
 ├── apps/web        # Painel do parceiro — Next.js 16
 ├── services/api    # API — Python 3.12 + FastAPI (monólito modular, dados em memória)
 ├── services/ml     # Notas do modelo de ocupação (v0 = perfil por hora nos mocks)
@@ -22,6 +23,9 @@ vagacerta/
 
 Pré-requisitos: Node 20+, Python 3.12 e o app **Expo Go** no celular.
 O celular e o computador precisam estar **na mesma rede Wi-Fi**.
+
+> Todos os comandos abaixo partem da pasta `vagacerta/` (a que contém este README).
+> Se o terminal estiver em `Projeto de Negocio Inovador`, rode `cd vagacerta` antes.
 
 **1. API** (terminal 1)
 
@@ -86,10 +90,27 @@ O relógio da API começa nesse horário e avança normalmente.
 | "Encontrou a vaga?" → taxa de acerto | `GET /metricas` |
 | Painel do parceiro informando vagas livres ("Mágico de Oz") | `web/src/componentes/PainelParceiro.tsx` |
 
+## Trechos de rua (OpenStreetMap)
+
+O traçado das vagas de rua vem do OpenStreetMap. A equipe descreve cada trecho como
+**"rua X, entre Y e Z"** em `services/api/scripts/trechos_referencia.json` (nomes exatamente
+como no OSM, com tipo e capacidade levantados na rua), e o script gera `app/dados_mock/trechos.json`:
+
+```bash
+cd services/api
+.venv/bin/python scripts/importar_trechos_osm.py --esquinas "Rua Cruz Machado"  # ver as esquinas de uma rua
+.venv/bin/python scripts/importar_trechos_osm.py                                # gerar trechos.json
+```
+
+O script recusa trechos que atravessam mais de uma quadra, que caem em calçadão ou cujas ruas
+não se cruzam; tira 5 m de cada esquina (CTB) e posiciona vagas de idoso/PCD/carga junto à esquina indicada.
+O OSM **não diz onde existe EstaR** nem quantas vagas há — isso vem do levantamento de campo.
+Dados © colaboradores do OpenStreetMap (licença ODbL): o crédito aparece no app.
+
 ## Verificações
 
 ```bash
-cd services/api && .venv/bin/python -m pytest      # 26 testes
+cd services/api && .venv/bin/python -m pytest      # 30 testes
 cd apps/mobile && npx tsc --noEmit && npx expo lint
 cd apps/web && npx tsc --noEmit && npm run lint && npm run build
 ```

@@ -13,3 +13,6 @@ node_modules/
 
 # OSRM (arquivos grandes do OpenStreetMap)
 infra/osrm/
+
+# Cache das ruas baixadas do OpenStreetMap (o script baixa de novo se faltar)
+services/api/scripts/cache/

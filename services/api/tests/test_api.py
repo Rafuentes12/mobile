@@ -1,5 +1,5 @@
-BOCA_MALDITA = {"lat": -25.4316, "lng": -49.2747}
-PRACA_DO_JAPAO = {"lat": -25.4478, "lng": -49.2963}
+BOCA_MALDITA = {"lat": -25.4322, "lng": -49.2743}
+JARDIM_BOTANICO = {"lat": -25.4418, "lng": -49.2387}
 
 
 def test_saude(cliente):
@@ -27,7 +27,7 @@ def test_lazer_de_1h_inclui_rua_e_ordena_pela_nota(cliente):
 
 
 def test_vagas_exclusivas_exigem_credencial(cliente):
-    params = {"lat": -25.4320, "lng": -49.2708, "duracao_min": 60}
+    params = {"lat": -25.4318, "lng": -49.2705, "duracao_min": 60}
     sem = cliente.get("/recomendacoes", params=params).json()
     com = cliente.get("/recomendacoes", params={**params, "credencial": "idoso"}).json()
     assert "t-06" not in [c["id"] for c in sem["candidatos"]]
@@ -35,7 +35,7 @@ def test_vagas_exclusivas_exigem_credencial(cliente):
 
 
 def test_destino_fora_do_piloto_explica_a_falta_de_cobertura(cliente):
-    r = cliente.get("/recomendacoes", params=PRACA_DO_JAPAO).json()
+    r = cliente.get("/recomendacoes", params=JARDIM_BOTANICO).json()
     assert r["candidatos"] == []
     assert "Centro e Batel" in r["mensagem"]
 
