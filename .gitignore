@@ -1,0 +1,15 @@
+# Python
+.venv/
+__pycache__/
+.pytest_cache/
+
+# Node / Expo / Next (cada app também tem o seu .gitignore)
+node_modules/
+
+# Ambiente
+.env
+.env*.local
+.DS_Store
+
+# OSRM (arquivos grandes do OpenStreetMap)
+infra/osrm/

@@ -1,0 +1,8 @@
+[
+  { "alvo_id": "est-01", "fonte": "atendente", "minutos_atras": 2, "vagas_livres": 12 },
+  { "alvo_id": "est-02", "fonte": "atendente", "minutos_atras": 5, "vagas_livres": 0 },
+  { "alvo_id": "est-03", "fonte": "atendente", "minutos_atras": 25, "vagas_livres": 6 },
+  { "alvo_id": "est-04", "fonte": "cancela", "minutos_atras": 1, "vagas_livres": 34 },
+  { "alvo_id": "t-01", "fonte": "usuario", "minutos_atras": 1, "livre": true },
+  { "alvo_id": "t-10", "fonte": "usuario", "minutos_atras": 2, "livre": false }
+]

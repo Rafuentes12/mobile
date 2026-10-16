@@ -1,0 +1,70 @@
+:root {
+  --fundo: #f3f6f9;
+  --superficie: #ffffff;
+  --texto: #1d2433;
+  --suave: #5b6578;
+  --borda: #dce3ea;
+  --marinho: #21285a;
+  --azul: #0b5a80;
+  --livre: #1e8e4f;
+  --talvez: #a86f00;
+  --ocupada: #c62828;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fundo: #10141f;
+    --superficie: #1a2030;
+    --texto: #e7ebf3;
+    --suave: #9aa4b8;
+    --borda: #2c3447;
+    --marinho: #c9d2ff;
+    --azul: #5fb4e0;
+    --livre: #4cc27f;
+    --talvez: #e2b04a;
+    --ocupada: #ef6b6b;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--fundo);
+  color: var(--texto);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.pagina { max-width: 1080px; margin: 0 auto; padding: 24px 16px 48px; }
+.topo h1 { color: var(--marinho); margin: 0 0 8px; font-size: 1.6rem; }
+.topo p { margin: 4px 0; color: var(--suave); max-width: 60ch; }
+.aviso-mock { font-size: 0.85rem; }
+
+.painel { margin-top: 24px; display: grid; gap: 16px; }
+.barra { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; }
+.barra select { font: inherit; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--borda); background: var(--superficie); color: var(--texto); }
+.metrica { color: var(--suave); }
+.erro { color: var(--ocupada); margin: 0; }
+
+.cartoes { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+.cartao { background: var(--superficie); border: 1px solid var(--borda); border-radius: 14px; padding: 16px; display: grid; gap: 12px; }
+.cartao h2 { margin: 0; font-size: 1.1rem; }
+.suave { color: var(--suave); font-size: 0.9rem; margin: 4px 0 0; }
+
+.estado { margin: 0; padding: 8px 12px; border-radius: 8px; border-left: 5px solid; background: var(--fundo); font-weight: 600; }
+.estado.livre { border-color: var(--livre); }
+.estado.talvez { border-color: var(--talvez); }
+.estado.ocupada { border-color: var(--ocupada); }
+
+.controle { display: grid; gap: 8px; }
+.contador { display: flex; gap: 8px; }
+.contador input { flex: 1; min-width: 0; font: inherit; font-size: 1.2rem; text-align: center; padding: 8px; border-radius: 8px; border: 1px solid var(--borda); background: var(--superficie); color: var(--texto); }
+.acoes { display: flex; gap: 8px; }
+
+button { font: inherit; min-height: 44px; min-width: 44px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--azul); background: var(--superficie); color: var(--azul); cursor: pointer; }
+button.principal { background: var(--azul); color: var(--superficie); flex: 1; }
+button:disabled { opacity: 0.6; cursor: progress; }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 3px solid var(--azul); outline-offset: 2px; }
+
+.reservas ul { margin: 6px 0 0; padding-left: 18px; }

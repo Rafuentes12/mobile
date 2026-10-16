@@ -1,0 +1,22 @@
+# Serviços da PRÓXIMA FASE (o MVP mockado não precisa de nada disto).
+# Uso: docker compose -f infra/docker-compose.yml up -d
+services:
+  postgis:
+    image: postgis/postgis:17-3.5
+    environment:
+      POSTGRES_DB: vagacerta
+      POSTGRES_USER: vagacerta
+      POSTGRES_PASSWORD: vagacerta-dev # só para desenvolvimento local
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - dados-postgis:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+volumes:
+  dados-postgis:
