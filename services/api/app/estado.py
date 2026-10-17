@@ -1,6 +1,7 @@
 """Monta os serviços da aplicação (injeção de dependências simples).
 
-Tudo fica em memória: reiniciar a API volta aos dados mockados iniciais.
+Tudo fica em memória: reiniciar a API volta aos dados iniciais (mock do Centro + Batel do OSM)
+e descarta reportes, sessões e mudanças feitas pelo mapeamento colaborativo.
 """
 
 import json
@@ -9,11 +10,12 @@ from datetime import timedelta
 
 from fastapi import Header, Request
 
-from app.catalogo import PASTA_MOCK, Catalogo, CatalogoMock
-from app.config import Relogio, criar_relogio
+from app.catalogo import PASTA_MOCK, Catalogo, CatalogoArquivos
+from app.config import DISTANCIA_MAXIMA_M, Relogio, criar_relogio
 from app.provedores.destinos import DestinosMock, ProvedorDestinos
 from app.provedores.rotas import ProvedorRotas, RotasEstimadas
 from app.servicos.disponibilidade import ServicoDisponibilidade, Sinal
+from app.servicos.mapeamento import ServicoMapeamento
 from app.servicos.reportes import ServicoReportes
 from app.servicos.reservas import ServicoReservas
 from app.servicos.sessoes import ServicoSessoes
@@ -29,11 +31,13 @@ class Estado:
     reservas: ServicoReservas
     sessoes: ServicoSessoes
     reportes: ServicoReportes
+    mapeamento: ServicoMapeamento
 
     @classmethod
-    def criar(cls, relogio: Relogio | None = None, semear: bool = True) -> "Estado":
+    def criar(cls, relogio: Relogio | None = None, semear: bool = True,
+              distancia_maxima_m: float = DISTANCIA_MAXIMA_M) -> "Estado":
         relogio = relogio or criar_relogio()
-        catalogo = CatalogoMock()
+        catalogo = CatalogoArquivos()
         disponibilidade = ServicoDisponibilidade(catalogo)
         estado = cls(
             relogio=relogio,
@@ -42,8 +46,9 @@ class Estado:
             rotas=RotasEstimadas(),
             disponibilidade=disponibilidade,
             reservas=ServicoReservas(catalogo),
-            sessoes=ServicoSessoes(catalogo, disponibilidade),
-            reportes=ServicoReportes(catalogo, disponibilidade),
+            sessoes=ServicoSessoes(catalogo, disponibilidade, distancia_maxima_m),
+            reportes=ServicoReportes(catalogo, disponibilidade, distancia_maxima_m),
+            mapeamento=ServicoMapeamento(catalogo, distancia_maxima_m),
         )
         if semear:
             estado._semear_sinais()

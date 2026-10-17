@@ -38,6 +38,7 @@ export default function Layout() {
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="vaga/[id]" options={{ title: 'Vaga' }} />
         <Stack.Screen name="sessao" options={{ title: 'Estacionamento ativo' }} />
+        <Stack.Screen name="sugerir" options={{ title: 'Sugerir estacionamento' }} />
       </Stack>
     </ProvedorEstado>
   );

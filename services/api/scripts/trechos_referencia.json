@@ -7,10 +7,5 @@
   {"id": "t-06", "setor_id": "centro", "rua_osm": "Rua Marechal Deodoro", "entre": ["Rua Monsenhor Celso", "Avenida Marechal Floriano Peixoto"], "junto_a": "Rua Monsenhor Celso", "tipo": "idoso", "capacidade": 2},
   {"id": "t-07", "setor_id": "centro", "rua_osm": "Rua Cruz Machado", "entre": ["Rua Desembargador Ermelino de Leão", "Rua Voluntários da Pátria"], "junto_a": "Rua Voluntários da Pátria", "tipo": "carga_descarga", "capacidade": 2},
   {"id": "t-08", "setor_id": "centro", "rua_osm": "Rua Desembargador Westphalen", "entre": ["Rua Pedro Ivo", "Rua André de Barros"], "tipo": "comum", "capacidade": 12},
-  {"id": "t-09", "setor_id": "centro", "rua_osm": "Rua Desembargador Westphalen", "entre": ["Rua Pedro Ivo", "Rua André de Barros"], "junto_a": "Rua André de Barros", "tipo": "pcd", "capacidade": 2},
-  {"id": "t-10", "setor_id": "batel", "rua_osm": "Avenida do Batel", "entre": ["Rua Francisco Rocha", "Rua Bruno Filgueira"], "tipo": "comum", "capacidade": 14},
-  {"id": "t-11", "setor_id": "batel", "rua_osm": "Avenida do Batel", "entre": ["Rua Padre Ildefonso", "Rua Francisco Rocha"], "tipo": "comum", "capacidade": 10},
-  {"id": "t-12", "setor_id": "batel", "rua_osm": "Rua Gonçalves Dias", "entre": ["Avenida do Batel", "Rua Carneiro Lobo"], "tipo": "comum", "capacidade": 8},
-  {"id": "t-13", "setor_id": "batel", "rua_osm": "Rua Bispo Dom José", "entre": ["Avenida do Batel", "Rua Carneiro Lobo"], "tipo": "comum", "capacidade": 9},
-  {"id": "t-14", "setor_id": "batel", "rua_osm": "Rua Bispo Dom José", "entre": ["Rua Carneiro Lobo", "Rua Deputado Antônio Baby"], "tipo": "comum", "capacidade": 7}
+  {"id": "t-09", "setor_id": "centro", "rua_osm": "Rua Desembargador Westphalen", "entre": ["Rua Pedro Ivo", "Rua André de Barros"], "junto_a": "Rua André de Barros", "tipo": "pcd", "capacidade": 2}
 ]

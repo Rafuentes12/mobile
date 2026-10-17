@@ -76,7 +76,8 @@ export default function TelaSessao() {
       </View>
 
       <Text style={estilos.texto}>
-        Valor: {reais(sessao.valor_pago)} <Text style={estilos.suave}>(pagamento simulado)</Text>
+        Valor: {sessao.valor_pago === null ? 'pago direto no estacionamento' : reais(sessao.valor_pago)}{' '}
+        <Text style={estilos.suave}>(pagamento simulado)</Text>
       </Text>
       <Text style={estilos.suave}>Você recebe um aviso 10 minutos antes de acabar.</Text>
 

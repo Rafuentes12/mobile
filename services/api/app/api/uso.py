@@ -19,6 +19,8 @@ class NovaSessao(BaseModel):
     alvo_id: str
     placa: str
     duracao_min: int = Field(ge=15, le=24 * 60)
+    lat: float  # posição atual do usuário: precisa estar perto da vaga
+    lng: float
 
 
 class Extensao(BaseModel):
@@ -28,8 +30,8 @@ class Extensao(BaseModel):
 class NovoReporte(BaseModel):
     alvo_id: str
     livre: bool
-    lat: Optional[float] = None
-    lng: Optional[float] = None
+    lat: float
+    lng: float
 
 
 class NovaChegada(BaseModel):
@@ -60,8 +62,9 @@ def registrar_entrada(reserva_id: str, usuario: str = Depends(obter_usuario), es
 
 @router.post("/sessoes", response_model=Sessao, status_code=201)
 def iniciar_sessao(dados: NovaSessao, usuario: str = Depends(obter_usuario), estado: Estado = Depends(obter_estado)):
-    """Inicia uma sessão com pagamento SIMULADO."""
-    return estado.sessoes.iniciar(dados.alvo_id, usuario, dados.placa, dados.duracao_min, estado.relogio())
+    """Inicia uma sessão com pagamento SIMULADO. Exige estar a até 300 m da vaga (configurável)."""
+    return estado.sessoes.iniciar(dados.alvo_id, usuario, dados.placa, dados.duracao_min, estado.relogio(),
+                                  dados.lat, dados.lng)
 
 
 @router.get("/sessoes/ativa", response_model=Optional[Sessao])

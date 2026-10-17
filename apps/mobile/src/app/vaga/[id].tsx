@@ -1,12 +1,14 @@
 import { Stack, router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Botao } from '@/componentes/Botao';
 import { api } from '@/lib/api';
 import { duracaoMs, useApp } from '@/lib/estado';
-import { abrirNavegacao, agendarAvisoDeExpiracao } from '@/lib/externos';
-import { cores, corPorProbabilidade, hora, reais } from '@/lib/formato';
+import { abrirNavegacao, agendarAvisoDeExpiracao, posicaoAtual } from '@/lib/externos';
+import { cores, corPorProbabilidade, distanciaAteLinha, distanciaKm, hora, metros, reais } from '@/lib/formato';
+import { RAIO_VAGAS_M, REGIAO_PILOTO } from '@/lib/regiao';
+import type { Coordenada, Estimativa } from '@/lib/tipos';
 
 const NOMES_COMPONENTES: Record<string, string> = {
   prob_livre: 'Chance de vaga',
@@ -18,9 +20,20 @@ const NOMES_COMPONENTES: Record<string, string> = {
 
 export default function TelaVaga() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { recomendacao, vagas, origem, reserva, setReserva, sessaoLocal, setSessaoLocal } = useApp();
+  const { recomendacao, vagas, setVagas, reserva, setReserva, sessaoLocal, setSessaoLocal, distanciaMaximaM } =
+    useApp();
   const [placa, setPlaca] = useState('ABC1D23');
+  const [preco, setPreco] = useState('');
   const [ocupado, setOcupado] = useState<string | null>(null);
+  const [posicao, setPosicao] = useState<Coordenada | null>(null);
+  const [erroPosicao, setErroPosicao] = useState<string | null>(null);
+
+  // Onde o usuário está: algumas ações só valem perto da vaga.
+  useEffect(() => {
+    posicaoAtual()
+      .then(setPosicao)
+      .catch((e: Error) => setErroPosicao(e.message));
+  }, []);
 
   const candidato = recomendacao?.candidatos.find((c) => c.id === id);
   const vaga = candidato ?? vagas.find((v) => v.id === id);
@@ -35,6 +48,14 @@ export default function TelaVaga() {
   const ehRua = vaga.tipo === 'rua';
   const reservaDestaVaga = reserva?.estacionamento_id === vaga.id && reserva.status === 'ativa' ? reserva : null;
   const duracao = recomendacao?.duracao_min ?? 60;
+  const distancia =
+    posicao === null
+      ? null
+      : vaga.coordenadas
+        ? distanciaAteLinha(posicao, vaga.coordenadas)
+        : distanciaKm(posicao, vaga) * 1000;
+  const perto = distancia !== null && distancia <= distanciaMaximaM;
+  const podeMapear = !vaga.parceiro; // dados de parceiros vêm deles mesmos
 
   async function executar(chave: string, acao: () => Promise<void>) {
     setOcupado(chave);
@@ -46,6 +67,22 @@ export default function TelaVaga() {
       setOcupado(null);
     }
   }
+
+  // Pega a posição de novo na hora da ação (a API confere a distância).
+  async function posicaoFresca(): Promise<Coordenada> {
+    const atual = await posicaoAtual();
+    setPosicao(atual);
+    return atual;
+  }
+
+  const atualizarPosicao = () =>
+    executar('posicao', async () => {
+      setErroPosicao(null);
+      await posicaoFresca();
+    });
+
+  const recarregarMapa = () =>
+    api.vagas(REGIAO_PILOTO.latitude, REGIAO_PILOTO.longitude, RAIO_VAGAS_M).then(setVagas).catch(() => {});
 
   const reservar = () =>
     executar('reserva', async () => {
@@ -59,7 +96,7 @@ export default function TelaVaga() {
 
   const iniciarSessao = () =>
     executar('sessao', async () => {
-      const sessao = await api.iniciarSessao(vaga.id, placa, duracao);
+      const sessao = await api.iniciarSessao(vaga.id, placa, duracao, await posicaoFresca());
       const inicioLocal = Date.now();
       const avisoId = await agendarAvisoDeExpiracao(new Date(inicioLocal + duracaoMs(sessao)));
       setSessaoLocal({ sessao, inicioLocal, avisoId });
@@ -68,10 +105,35 @@ export default function TelaVaga() {
 
   const reportar = (livre: boolean) =>
     executar(livre ? 'livre' : 'ocupada', async () => {
-      // Antifraude da API: o reporte só vale perto da vaga. Com origem simulada, não mandamos posição.
-      const posicao = origem && !origem.simulada ? origem : undefined;
-      await api.reportar(vaga.id, livre, posicao?.lat, posicao?.lng);
+      await api.reportar(vaga.id, livre, await posicaoFresca());
       Alert.alert('Obrigado!', 'Seu reporte ajuda outros motoristas nos próximos minutos.');
+    });
+
+  const mapearTrecho = (tipo: 'tem_estar' | 'sem_estar' | 'proibido') =>
+    executar(tipo, async () => {
+      const r = await api.mapearTrecho(vaga.id, tipo, await posicaoFresca());
+      if (r.aplicado) await recarregarMapa();
+      Alert.alert('Obrigado!', r.mensagem);
+    });
+
+  const informarPreco = () =>
+    executar('preco', async () => {
+      const valor = Number(preco.replace(',', '.'));
+      if (!preco || Number.isNaN(valor)) throw new Error('Digite o preço por hora, por exemplo 12,50.');
+      const r = await api.informarPreco(vaga.id, valor, await posicaoFresca());
+      await recarregarMapa();
+      setPreco('');
+      Alert.alert('Obrigado!', r.mensagem);
+    });
+
+  const informarFechado = () =>
+    executar('fechado', async () => {
+      const r = await api.informarFechado(vaga.id, await posicaoFresca());
+      if (r.aplicado) {
+        await recarregarMapa();
+        router.back();
+      }
+      Alert.alert('Obrigado!', r.mensagem);
     });
 
   const avaliarChegada = (encontrou: boolean) =>
@@ -80,11 +142,20 @@ export default function TelaVaga() {
       Alert.alert('Obrigado!', 'Isso entra na nossa taxa de acerto.');
     });
 
+  const avisoDistancia = erroPosicao
+    ? erroPosicao
+    : distancia === null
+      ? 'Verificando sua localização…'
+      : `Você está a ${metros(distancia)} da vaga. Para isso, chegue a até ${metros(distanciaMaximaM)}.`;
+
   return (
     <ScrollView contentContainerStyle={estilos.conteudo}>
       <Stack.Screen options={{ title: ehRua ? 'Vaga de rua' : 'Estacionamento' }} />
 
       <Text style={estilos.titulo}>{vaga.nome}</Text>
+      <View style={[estilos.selo, vaga.tracejado && estilos.seloTracejado]}>
+        <Text style={estilos.seloTexto}>{vaga.rotulo_regime}</Text>
+      </View>
       <View style={[estilos.estado, { borderLeftColor: corPorProbabilidade(vaga.estado.prob_livre) }]}>
         <Text style={estilos.estadoRotulo}>{vaga.estado.rotulo}</Text>
         <Text style={estilos.suave}>
@@ -93,10 +164,20 @@ export default function TelaVaga() {
         </Text>
       </View>
 
+      <View style={estilos.bloco}>
+        <Text style={estilos.texto}>
+          {vaga.capacidade_estimada ? '~' : ''}
+          {vaga.capacidade} vagas{vaga.capacidade_estimada ? ' (estimativa)' : ''}
+        </Text>
+        <Text style={estilos.suave}>Fonte: {vaga.fonte}</Text>
+        {vaga.estimativa && <TextoEstimativa estimativa={vaga.estimativa} />}
+      </View>
+
       {candidato && (
         <View style={estilos.bloco}>
           <Text style={estilos.texto}>
-            {reais(candidato.preco_estimado)} por {duracao < 60 ? `${duracao} min` : `${duracao / 60} h`} ·{' '}
+            {reais(candidato.preco_estimado)}
+            {candidato.preco_estimado !== null ? ` por ${duracao < 60 ? `${duracao} min` : `${duracao / 60} h`}` : ''} ·{' '}
             {candidato.caminhada_min} min a pé ({candidato.caminhada_m} m)
             {candidato.tempo_carro_min !== null ? ` · ${candidato.tempo_carro_min} min de carro` : ''}
           </Text>
@@ -141,7 +222,7 @@ export default function TelaVaga() {
           )}
         </>
       )}
-      {ehRua && <Text style={estilos.suave}>Vagas de rua (EstaR) são espaço público e não podem ser reservadas.</Text>}
+      {ehRua && <Text style={estilos.suave}>Vagas de rua são espaço público e não podem ser reservadas.</Text>}
 
       <Text style={estilos.subtitulo}>Estacionar (pagamento simulado)</Text>
       <View style={estilos.bloco}>
@@ -157,20 +238,59 @@ export default function TelaVaga() {
           placeholder="Placa"
           style={estilos.campo}
         />
+        {!perto && <Text style={estilos.aviso}>{avisoDistancia}</Text>}
         <Botao
           titulo={sessaoLocal ? 'Você já tem um estacionamento ativo' : 'Iniciar estacionamento'}
-          desabilitado={!!sessaoLocal}
+          desabilitado={!!sessaoLocal || !perto}
           carregando={ocupado === 'sessao'}
           onPress={iniciarSessao}
         />
+        {!perto && (
+          <Botao titulo="Atualizar minha posição" variante="secundario" carregando={ocupado === 'posicao'} onPress={atualizarPosicao} />
+        )}
       </View>
 
       {ehRua && (
         <>
           <Text style={estilos.subtitulo}>Está vendo esta vaga agora?</Text>
           <View style={estilos.linha}>
-            <Botao titulo="Está livre" variante="secundario" carregando={ocupado === 'livre'} onPress={() => reportar(true)} />
-            <Botao titulo="Está ocupada" variante="secundario" carregando={ocupado === 'ocupada'} onPress={() => reportar(false)} />
+            <Botao titulo="Está livre" variante="secundario" desabilitado={!perto} carregando={ocupado === 'livre'} onPress={() => reportar(true)} />
+            <Botao titulo="Está ocupada" variante="secundario" desabilitado={!perto} carregando={ocupado === 'ocupada'} onPress={() => reportar(false)} />
+          </View>
+        </>
+      )}
+
+      {podeMapear && (
+        <>
+          <Text style={estilos.subtitulo}>Ajude a mapear</Text>
+          <View style={estilos.bloco}>
+            <Text style={estilos.suave}>
+              {ehRua
+                ? 'O que diz a placa deste trecho? Com 2 motoristas concordando, o mapa é atualizado.'
+                : 'Informe o preço da placa na entrada ou avise se o estacionamento fechou.'}
+            </Text>
+            {!perto && <Text style={estilos.aviso}>{avisoDistancia}</Text>}
+            {ehRua ? (
+              <>
+                <Botao titulo="Tem EstaR" variante="secundario" desabilitado={!perto} carregando={ocupado === 'tem_estar'} onPress={() => mapearTrecho('tem_estar')} />
+                <Botao titulo="Sem EstaR (estacionamento grátis)" variante="secundario" desabilitado={!perto} carregando={ocupado === 'sem_estar'} onPress={() => mapearTrecho('sem_estar')} />
+                <Botao titulo="Proibido estacionar" variante="secundario" desabilitado={!perto} carregando={ocupado === 'proibido'} onPress={() => mapearTrecho('proibido')} />
+              </>
+            ) : (
+              <>
+                <View style={estilos.linha}>
+                  <TextInput
+                    value={preco}
+                    onChangeText={setPreco}
+                    keyboardType="decimal-pad"
+                    placeholder="R$ por hora"
+                    style={[estilos.campo, { flex: 1 }]}
+                  />
+                  <Botao titulo="Informar preço" variante="secundario" desabilitado={!perto} carregando={ocupado === 'preco'} onPress={informarPreco} />
+                </View>
+                <Botao titulo="Este estacionamento fechou" variante="secundario" desabilitado={!perto} carregando={ocupado === 'fechado'} onPress={informarFechado} />
+              </>
+            )}
           </View>
         </>
       )}
@@ -184,6 +304,22 @@ export default function TelaVaga() {
   );
 }
 
+// "Como estimamos" — transparência sobre a capacidade calculada a partir do mapa.
+function TextoEstimativa({ estimativa }: { estimativa: Estimativa }) {
+  const descontos = Object.entries(estimativa.descontos_m)
+    .map(([nome, m]) => `${nome} (${m} m)`)
+    .join(', ');
+  const lados = estimativa.lados === 1 ? '1 lado' : `${estimativa.lados} lados`;
+  return (
+    <Text style={estilos.suave}>
+      Como estimamos: quadra de {estimativa.comprimento_m} m, {lados}
+      {estimativa.mao_unica ? ' (mão única)' : ''}, 5 m livres em cada esquina
+      {descontos ? `, menos ${descontos}` : ''} e {Math.round((1 - estimativa.fator_garagens_nao_mapeadas) * 100)}% a menos
+      por garagens que não estão no mapa. Vaga de 5,5 m.
+    </Text>
+  );
+}
+
 const estilos = StyleSheet.create({
   conteudo: { padding: 16, gap: 12, paddingBottom: 40, backgroundColor: cores.fundo },
   vazio: { flex: 1, alignItems: 'center', justifyContent: 'center' },
@@ -191,9 +327,12 @@ const estilos = StyleSheet.create({
   subtitulo: { fontSize: 15, fontWeight: '700', color: cores.texto, marginTop: 4 },
   texto: { fontSize: 15, color: cores.texto },
   suave: { fontSize: 13, color: cores.suave },
+  selo: { alignSelf: 'flex-start', borderRadius: 14, borderWidth: 1.5, borderColor: cores.marinho, paddingHorizontal: 10, paddingVertical: 4 },
+  seloTracejado: { borderStyle: 'dashed' },
+  seloTexto: { fontSize: 13, fontWeight: '600', color: cores.marinho },
   estado: { backgroundColor: '#fff', borderRadius: 10, padding: 12, borderLeftWidth: 6, gap: 4 },
   estadoRotulo: { fontSize: 16, fontWeight: '600', color: cores.texto },
-  bloco: { backgroundColor: '#fff', borderRadius: 10, padding: 12, gap: 6 },
+  bloco: { backgroundColor: '#fff', borderRadius: 10, padding: 12, gap: 8 },
   motivo: { fontSize: 14, color: cores.livre },
   aviso: { fontSize: 14, color: cores.talvez },
   linha: { flexDirection: 'row', gap: 10 },

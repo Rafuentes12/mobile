@@ -4,14 +4,18 @@ No MVP nada é cobrado de verdade. Depois:
 - estacionamentos privados → gateway com Pix/cartão e split da comissão;
 - EstaR → app homologado pela URBS (no MVP o app só abre um app homologado).
 Ao encerrar uma sessão de rua, a vaga vira um sinal "vaga liberada" para outros usuários.
+Só dá para iniciar uma sessão estando perto da vaga (padrão: 300 m), como no EstaR real,
+em que o app de pagamento pede a localização do carro.
 """
 
 import re
 import secrets
 import threading
 from datetime import datetime, timedelta
+from typing import Optional
 
 from app.catalogo import Catalogo
+from app.servicos.proximidade import exigir_proximidade
 from app.erros import ErroNegocio
 from app.modelos import Sessao
 from app.servicos import regras
@@ -21,28 +25,32 @@ PLACA_VALIDA = re.compile(r"^[A-Z]{3}-?\d[A-Z0-9]\d{2}$")  # antiga (ABC-1234) o
 
 
 class ServicoSessoes:
-    def __init__(self, catalogo: Catalogo, disponibilidade: ServicoDisponibilidade) -> None:
+    def __init__(self, catalogo: Catalogo, disponibilidade: ServicoDisponibilidade, distancia_maxima_m: float) -> None:
         self._catalogo = catalogo
+        self._distancia_maxima_m = distancia_maxima_m
         self._disponibilidade = disponibilidade
         self._sessoes: dict[str, Sessao] = {}
         self._lock = threading.Lock()
 
-    def _preco(self, alvo_id: str, inicio: datetime, duracao_min: int) -> tuple[str, float]:
+    def _preco(self, alvo_id: str, inicio: datetime, duracao_min: int) -> tuple[str, Optional[float]]:
         trecho = self._catalogo.trecho(alvo_id)
         if trecho:
-            avaliacao = regras.avaliar_rua(self._catalogo.setor(trecho.setor_id), inicio, duracao_min)
+            setor = self._catalogo.setor(trecho.setor_id)
+            avaliacao = regras.avaliar_rua(setor, inicio, duracao_min, trecho.regime)
             if not avaliacao.permitido:
                 raise ErroNegocio(avaliacao.motivo, 422)
             return "rua", avaliacao.preco
         est = self._catalogo.estacionamento(alvo_id)
-        if est:
+        if est and est.ativo:
             return "estacionamento", regras.preco_estacionamento(est, duracao_min)
         raise ErroNegocio("Vaga não encontrada", 404)
 
-    def iniciar(self, alvo_id: str, usuario_id: str, placa: str, duracao_min: int, agora: datetime) -> Sessao:
+    def iniciar(self, alvo_id: str, usuario_id: str, placa: str, duracao_min: int, agora: datetime,
+                lat: float, lng: float) -> Sessao:
         placa = placa.strip().upper()
         if not PLACA_VALIDA.match(placa):
             raise ErroNegocio("Placa inválida (use ABC1D23 ou ABC-1234)", 422)
+        exigir_proximidade(self._catalogo, alvo_id, lat, lng, self._distancia_maxima_m, "iniciar o estacionamento")
         tipo, valor = self._preco(alvo_id, agora, duracao_min)
         with self._lock:
             if any(s.usuario_id == usuario_id and s.status == "ativa" for s in self._sessoes.values()):

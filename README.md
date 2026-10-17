@@ -3,9 +3,12 @@
 Esqueleto do app de vagas de estacionamento em tempo real para Curitiba, seguindo o
 [planejamento técnico](../Planejamento_Tecnico_VagaCerta.md).
 
-> **Tudo é mockado.** Estacionamentos, preços e ocupação são fictícios (nomes com "Demo").
-> Os trechos de rua seguem o traçado real do OpenStreetMap; quais trechos têm EstaR, e quantas vagas, ainda é fictício. Nenhum pagamento é cobrado.
-> Nada é publicado nas lojas: o app roda no **Expo Go**.
+> **Batel: dados reais. Centro: dados de demonstração.**
+> - **Batel** — 205 trechos de rua (~3.660 vagas estimadas) e estacionamentos reais, gerados de dados abertos
+>   (OpenStreetMap, IPPUC e lista de EstaR da Setran). Ver [Batel com dados reais](#batel-com-dados-reais).
+> - **Centro** — trechos com traçado real, mas EstaR, capacidades e os estacionamentos parceiros ("Demo") são fictícios.
+> - Em ambos, a **ocupação** ("Provável 70% · histórico") ainda é um perfil ilustrativo, até as contagens de campo.
+> - Nenhum pagamento é cobrado. Nada é publicado nas lojas: o app roda no **Expo Go**.
 
 ## Estrutura
 
@@ -73,6 +76,14 @@ VAGACERTA_AGORA=2026-10-20T10:30 .venv/bin/uvicorn app.main:app --reload --host 
 
 O relógio da API começa nesse horário e avança normalmente.
 
+**Regra dos 300 m.** Iniciar um estacionamento, reportar uma vaga e mapear (EstaR, preço,
+estacionamento novo) só funcionam a até 300 m do local. Para demonstrar em sala, longe do Batel,
+aumente o raio — o app lê esse valor da API:
+
+```bash
+VAGACERTA_DISTANCIA_MAX_M=20000 .venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
 ## O que o MVP já faz
 
 | Funcionalidade | Onde |
@@ -87,12 +98,54 @@ O relógio da API começa nesse horário e avança normalmente.
 | Sessão com pagamento simulado, aviso local 10 min antes do fim, estender e encerrar | `mobile/src/app/sessao.tsx` |
 | Encerrar sessão de rua avisa outros motoristas ("vaga liberada") | `api/app/servicos/sessoes.py` |
 | Crowdsourcing "livre/ocupada" com antifraude simples (distância e intervalo) | `api/app/servicos/reportes.py` |
+| Só inicia estacionamento a até 300 m da vaga (configurável) | `api/app/servicos/proximidade.py` |
+| Linhas tracejadas para trechos estimados; cinza para proibidos | `mobile/src/app/index.tsx` |
+| Mapeamento colaborativo: "tem EstaR / sem EstaR / proibido", preço e fechamento de estacionamentos, sugestão de estacionamento novo (vale com 2 usuários concordando) | `api/app/servicos/mapeamento.py`, `mobile/src/app/sugerir.tsx` |
 | "Encontrou a vaga?" → taxa de acerto | `GET /metricas` |
 | Painel do parceiro informando vagas livres ("Mágico de Oz") | `web/src/componentes/PainelParceiro.tsx` |
 
-## Trechos de rua (OpenStreetMap)
+## Batel com dados reais
 
-O traçado das vagas de rua vem do OpenStreetMap. A equipe descreve cada trecho como
+Gerado por `services/api/scripts/gerar_batel_osm.py` em `services/api/app/dados_osm/`:
+
+| Dado | Fonte |
+|---|---|
+| Limite do bairro | IPPUC/GeoCuritiba — camada oficial "Divisa de Bairros" |
+| Ruas, esquinas, mão única, faixas de pedestre, pontos de ônibus, hidrantes, entradas de garagem, faixas de ônibus e ciclofaixas | OpenStreetMap |
+| Estacionamentos (só os de acesso público ou com nome) | OpenStreetMap |
+| Trechos com EstaR | Lista da Setran publicada em 01/11/2019 (`scripts/batel_estar_setran_2019.json`) |
+
+Como o OSM quase nunca diz onde se pode estacionar, vale a regra do CTB: **na rua pode, salvo
+exceções**. Cada quadra (rua entre duas esquinas) vira um trecho com capacidade estimada: lados com
+estacionamento (mão única = 1, mão dupla = 2, menos faixa de ônibus/ciclofaixa/proibição marcada),
+menos 5 m em cada esquina, faixas de pedestre, pontos de ônibus, hidrantes e garagens mapeadas, e
+25% a menos por garagens que não estão no mapa (fator a calibrar nas contagens de campo).
+Quadras acima de 200 m viram partes de até 150 m.
+
+| Regime | No app | Origem |
+|---|---|---|
+| EstaR (Setran: implantado) | linha cheia | lista da Setran |
+| EstaR previsto | tracejada, "confira a placa" | lista da Setran ("próximos meses") |
+| A confirmar | tracejada, "Pode ser EstaR — confira a placa" | demais quadras; usa as regras do EstaR por cautela |
+| Confirmado por usuários | linha cheia | 2 usuários concordando no mapeamento colaborativo |
+| Proibido | cinza, fora da recomendação | mapeamento colaborativo |
+
+Não existe camada de EstaR no GeoCuritiba nem no portal de dados abertos; a lista da Setran é a única
+fonte pública encontrada (3 trechos implantados e 8 previstos — 3 dos previstos não fecham no OSM e
+são ignorados com aviso). Estacionamentos do OSM não têm preço nem horário: o app mostra
+"preço não informado" até os usuários informarem.
+
+```bash
+cd services/api
+.venv/bin/python scripts/gerar_batel_osm.py            # usa o cache local se existir
+.venv/bin/python scripts/gerar_batel_osm.py --baixar   # baixa de novo do IPPUC e do OSM
+```
+
+O resumo da geração (fontes, contagens, quadras excluídas) fica em `app/dados_osm/batel_metadados.json`.
+
+## Trechos de rua do Centro (OpenStreetMap)
+
+O traçado das vagas de rua do Centro também vem do OpenStreetMap. A equipe descreve cada trecho como
 **"rua X, entre Y e Z"** em `services/api/scripts/trechos_referencia.json` (nomes exatamente
 como no OSM, com tipo e capacidade levantados na rua), e o script gera `app/dados_mock/trechos.json`:
 
@@ -110,12 +163,12 @@ Dados © colaboradores do OpenStreetMap (licença ODbL): o crédito aparece no a
 ## Verificações
 
 ```bash
-cd services/api && .venv/bin/python -m pytest      # 30 testes
+cd services/api && .venv/bin/python -m pytest      # 55 testes
 cd apps/mobile && npx tsc --noEmit && npx expo lint
 cd apps/web && npx tsc --noEmit && npm run lint && npm run build
 ```
 
-## Próximos passos (fora do MVP mockado)
+## Próximos passos
 
 1. **Mapa do Google no app:** criar chaves restritas e configurar o plugin `react-native-maps`
    no `app.json`; exige *development build* (`npx expo run:android`). No Expo Go o mapa funciona sem chave.
@@ -124,3 +177,6 @@ cd apps/web && npx tsc --noEmit && npm run lint && npm run build
 4. **Rotas reais:** `RotasOSRM` (ver `infra/README.md`).
 5. **Login:** Supabase Auth; a API passa a validar o JWT em vez do cabeçalho `X-Usuario-Id`.
 6. **Tipos compartilhados:** gerar `apps/*/src/lib/tipos.ts` do OpenAPI (`openapi-typescript`).
+7. **Contagens de campo no Batel:** conferir o EstaR quadra a quadra e calibrar o fator de garagens
+   (hoje 0,75) e o perfil de ocupação do setor `batel`.
+8. **Guardar o mapeamento colaborativo:** hoje os reportes vivem em memória e somem ao reiniciar a API.

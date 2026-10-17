@@ -1,0 +1,33 @@
+{
+  "fonte": {
+    "titulo": "Prefeitura anuncia que mais duas ruas do Batel terão vagas de EstaR",
+    "veiculo": "Banda B, com informações da Setran/Prefeitura de Curitiba",
+    "publicado_em": "2019-11-01",
+    "url": "https://www.bandab.com.br/curitiba/prefeitura-anuncia-que-mais-duas-ruas-do-batel-terao-vagas-de-estar/",
+    "observacao": "Única lista pública de trechos de EstaR no Batel que encontramos. Não há camada de EstaR no GeoCuritiba nem conjunto no portal de dados abertos. Confirmar em campo."
+  },
+  "trechos": [
+    {"rua": "Rua Francisco Rocha", "de": "Alameda Princesa Izabel", "ate": "Avenida Visconde de Guarapuava", "status": "implantado",
+     "texto": "Na Francisco Rocha, a implantação do EstaR será feita no trecho entre a Alameda Princesa Izabel e a Avenida Visconde de Guarapuava."},
+    {"rua": "Rua Carmelo Rangel", "de": "Rua Desembargador Costa Carvalho", "ate": {"fim_sentido": "centro"}, "status": "implantado",
+     "texto": "Já na Carmelo Rangel, ficará entre as ruas Desembargador Costa Carvalho até o seu final no sentido centro."},
+    {"rua": "Rua Bruno Filgueira", "de": "Rua Olavo Bilac", "ate": {"marco": "Parque Municipal Gomm"}, "status": "implantado",
+     "texto": "E, na Bruno Filgueira, o EstaR valerá entre a Rua Olavo Bilac e o Bosque Gomm."},
+    {"rua": "Rua Gabriel de Lara", "de": "Rua Carmelo Rangel", "ate": "Rua Bispo Dom José", "status": "previsto",
+     "texto": "Gabriel de Lara (entre Carmelo Rangel e Bispo Dom José)"},
+    {"rua": "Rua Desembargador Costa Carvalho", "de": "Alameda Doutor Carlos de Carvalho", "ate": "Rua Hermes Fontes", "status": "previsto",
+     "texto": "Desembargador Costa Carvalho (entre Carlos de Carvalho e Hermes Fontes)"},
+    {"rua": "Rua Hermes Fontes", "de": "Rua Gabriel de Lara", "ate": "Rua Francisco Rocha", "status": "previsto",
+     "texto": "Hermes Fontes (entre Gabriel de Lara e Francisco Rocha)"},
+    {"rua": "Alameda Dom Pedro II", "de": "Rua Francisco Rocha", "ate": "Rua Teixeira Coelho", "status": "previsto",
+     "texto": "Dom Pedro II (entre Francisco Rocha e Teixeira Coelho)"},
+    {"rua": "Rua Teixeira Coelho", "de": "Rua Cacilda Becker", "ate": "Alameda Dom Pedro II", "status": "previsto",
+     "texto": "Teixeira Coelho (entre Cacilda Becker e Dom Pedro II)"},
+    {"rua": "Rua Bruno Filgueira", "de": "Rua Olavo Bilac", "ate": "Alameda Doutor Carlos de Carvalho", "status": "previsto",
+     "texto": "Bruno Filgueira (entre Olavo Bilac e Carlos de Carvalho)"},
+    {"rua": "Alameda Doutor Carlos de Carvalho", "de": "Rua Desembargador Costa Carvalho", "ate": "Rua Francisco Rocha", "status": "previsto",
+     "texto": "Carlos de Carvalho (entre Desembargador Costa Carvalho e Francisco Rocha)"},
+    {"rua": "Rua Carmelo Rangel", "de": "Rua Desembargador Costa Carvalho", "ate": "Rua Jerônimo Durski", "status": "previsto",
+     "texto": "Carmelo Rangel (entre Desembargador Costa Carvalho e Jerônimo Durski)"}
+  ]
+}

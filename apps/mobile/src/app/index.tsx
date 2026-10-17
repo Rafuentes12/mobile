@@ -18,9 +18,9 @@ import { api } from '@/lib/api';
 import { duracaoMs, useApp } from '@/lib/estado';
 import { obterOrigem } from '@/lib/externos';
 import { cores, corPorProbabilidade, hora, reais } from '@/lib/formato';
-import type { Contexto, Credencial, Destino } from '@/lib/tipos';
+import { RAIO_VAGAS_M, REGIAO_PILOTO } from '@/lib/regiao';
+import type { Contexto, Credencial, Destino, VagaNoMapa } from '@/lib/tipos';
 
-const REGIAO_PILOTO = { latitude: -25.437, longitude: -49.2795, latitudeDelta: 0.03, longitudeDelta: 0.03 };
 const INTERVALO_ATUALIZACAO_MS = 30_000; // polling no MVP; WebSocket no Piloto
 
 const CONTEXTOS: { valor: Contexto; rotulo: string }[] = [
@@ -39,8 +39,10 @@ interface Filtros {
 }
 
 export default function TelaMapa() {
-  const { origem, setOrigem, destino, setDestino, vagas, setVagas, recomendacao, setRecomendacao, sessaoLocal } =
-    useApp();
+  const {
+    origem, setOrigem, destino, setDestino, vagas, setVagas, recomendacao, setRecomendacao, sessaoLocal,
+    setDistanciaMaximaM,
+  } = useApp();
   const [texto, setTexto] = useState('');
   const [sugestoes, setSugestoes] = useState<Destino[]>([]);
   const [buscando, setBuscando] = useState(false);
@@ -53,14 +55,16 @@ export default function TelaMapa() {
 
   useEffect(() => {
     obterOrigem().then(setOrigem);
-  }, [setOrigem]);
+    // Raio para iniciar estacionamento e reportar (a API pode ser configurada para demonstrações).
+    api.saude().then((s) => setDistanciaMaximaM(s.distancia_maxima_m)).catch(() => {});
+  }, [setOrigem, setDistanciaMaximaM]);
 
   // Estado das vagas no mapa, atualizado periodicamente.
   useEffect(() => {
     let ativo = true;
     const carregar = () =>
       api
-        .vagas(REGIAO_PILOTO.latitude, REGIAO_PILOTO.longitude, 2500)
+        .vagas(REGIAO_PILOTO.latitude, REGIAO_PILOTO.longitude, RAIO_VAGAS_M)
         .then((v) => ativo && (setVagas(v), setErro(null)))
         .catch((e: Error) => ativo && setErro(e.message));
     carregar();
@@ -125,8 +129,10 @@ export default function TelaMapa() {
             <Polyline
               key={v.id}
               coordinates={v.coordenadas!.map(([latitude, longitude]) => ({ latitude, longitude }))}
-              strokeColor={corPorProbabilidade(v.estado.prob_livre)}
-              strokeWidth={6}
+              strokeColor={corDaVaga(v)}
+              strokeWidth={5}
+              // Tracejado = trecho estimado a partir do mapa, ainda não confirmado.
+              lineDashPattern={v.tracejado ? [10, 8] : undefined}
               tappable
               onPress={() => router.push(`/vaga/${v.id}`)}
             />
@@ -137,9 +143,9 @@ export default function TelaMapa() {
             <Marker
               key={v.id}
               coordinate={{ latitude: v.lat, longitude: v.lng }}
-              pinColor={corPorProbabilidade(v.estado.prob_livre)}
+              pinColor={corDaVaga(v)}
               title={v.nome}
-              description={v.estado.rotulo}
+              description={`${v.rotulo_regime} · ${v.estado.rotulo}`}
               onCalloutPress={() => router.push(`/vaga/${v.id}`)}
             />
           ))}
@@ -211,6 +217,7 @@ export default function TelaMapa() {
                   <Text style={estilos.itemNome} numberOfLines={1}>
                     {i + 1}. {c.nome}
                   </Text>
+                  <Text style={estilos.itemRegime}>{c.rotulo_regime}</Text>
                   <Text style={estilos.itemRotulo}>{c.estado.rotulo}</Text>
                   <Text style={estilos.itemDetalhe}>
                     {reais(c.preco_estimado)} · {c.caminhada_min} min a pé
@@ -229,10 +236,23 @@ export default function TelaMapa() {
           </ScrollView>
         )}
         {destino && !carregando && <Botao titulo="Atualizar recomendação" variante="secundario" onPress={() => recomendar(filtrosAtuais)} />}
-        <Text style={estilos.credito}>Traçado das vagas de rua © colaboradores do OpenStreetMap</Text>
+        <View style={estilos.rodape}>
+          <Text style={estilos.legenda}>━━ confirmado   ┅┅ estimado do mapa</Text>
+          <Pressable onPress={() => router.push('/sugerir')} hitSlop={8}>
+            <Text style={estilos.link}>+ Sugerir estacionamento</Text>
+          </Pressable>
+        </View>
+        <Text style={estilos.credito}>
+          Ruas e estacionamentos do Batel © colaboradores do OpenStreetMap · limite do bairro: IPPUC · EstaR: Setran
+          (2019)
+        </Text>
       </View>
     </View>
   );
+}
+
+function corDaVaga(v: VagaNoMapa): string {
+  return v.regime === 'proibido' ? cores.proibida : corPorProbabilidade(v.estado.prob_livre);
 }
 
 function Chips<T extends string | number>({
@@ -284,6 +304,10 @@ const estilos = StyleSheet.create({
   item: { flexDirection: 'row', gap: 10, padding: 10, borderRadius: 10, backgroundColor: cores.fundo },
   indicador: { width: 6, borderRadius: 3 },
   itemNome: { fontSize: 15, fontWeight: '700', color: cores.texto },
+  itemRegime: { fontSize: 12, color: cores.marinho, fontWeight: '600', marginTop: 2 },
   itemRotulo: { fontSize: 13, color: cores.texto, marginTop: 2 },
+  rodape: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  legenda: { fontSize: 12, color: cores.suave },
+  link: { fontSize: 13, color: cores.azul, fontWeight: '600' },
   itemDetalhe: { fontSize: 13, color: cores.suave, marginTop: 2 },
 });

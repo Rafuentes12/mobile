@@ -23,3 +23,23 @@ def caminhada(lat1: float, lng1: float, lat2: float, lng2: float) -> tuple[float
     """Retorna (metros, minutos) estimados de caminhada."""
     metros = distancia_m(lat1, lng1, lat2, lng2) * FATOR_CAMINHADA
     return metros, metros / VELOCIDADE_CAMINHADA_M_MIN
+
+
+def distancia_ate_linha_m(lat: float, lng: float, linha: list[tuple[float, float]]) -> float:
+    """Menor distância (m) de um ponto até uma linha (lista de (lat, lng))."""
+    if len(linha) == 1:
+        return distancia_m(lat, lng, *linha[0])
+    escala_lng = math.cos(math.radians(lat))
+
+    def plano(p):
+        return (p[1] * escala_lng * 111_320.0, p[0] * 111_320.0)
+
+    px, py = plano((lat, lng))
+    menor = math.inf
+    for a, b in zip(linha, linha[1:]):
+        (ax, ay), (bx, by) = plano(a), plano(b)
+        dx, dy = bx - ax, by - ay
+        comp2 = dx * dx + dy * dy
+        t = 0.0 if comp2 == 0 else max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / comp2))
+        menor = min(menor, math.hypot(px - (ax + t * dx), py - (ay + t * dy)))
+    return menor

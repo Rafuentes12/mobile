@@ -1,12 +1,12 @@
 from datetime import timedelta
 
-from app.catalogo import CatalogoMock
+from app.catalogo import CatalogoArquivos
 from app.servicos.disponibilidade import ServicoDisponibilidade, Sinal
 from tests.conftest import TERCA_10H30 as AGORA
 
 
 def servico() -> ServicoDisponibilidade:
-    return ServicoDisponibilidade(CatalogoMock())
+    return ServicoDisponibilidade(CatalogoArquivos())
 
 
 def test_sem_sinais_usa_o_historico():

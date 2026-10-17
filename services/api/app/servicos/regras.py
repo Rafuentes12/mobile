@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Optional
 
-from app.modelos import Estacionamento, Horario, Setor
+from app.modelos import Estacionamento, Horario, Regime, Setor
 
 
 def tipo_de_dia(momento: datetime) -> str:
@@ -49,7 +49,13 @@ class AvaliacaoRua:
     motivo: Optional[str] = None
 
 
-def avaliar_rua(setor: Setor, chegada: datetime, duracao_min: int) -> AvaliacaoRua:
+def avaliar_rua(setor: Setor, chegada: datetime, duracao_min: int, regime: Regime = "estar") -> AvaliacaoRua:
+    """Regras de uma vaga de rua. "a_confirmar" usa as regras do EstaR por cautela:
+    se o trecho for EstaR, o motorista não leva multa por ter seguido o app."""
+    if regime == "livre":
+        return AvaliacaoRua(True, 0.0, 0)
+    if regime == "proibido":
+        return AvaliacaoRua(False, 0.0, 0, "Proibido estacionar neste trecho")
     cobrados = minutos_em_cobranca(setor, chegada, duracao_min)
     if cobrados > setor.tempo_max_min:
         horas = setor.tempo_max_min / 60
@@ -60,15 +66,25 @@ def avaliar_rua(setor: Setor, chegada: datetime, duracao_min: int) -> AvaliacaoR
 
 
 def estacionamento_aberto(est: Estacionamento, momento: datetime) -> bool:
+    """Horário desconhecido conta como aberto (o app avisa que não foi informado)."""
+    if est.horario is None:
+        return True
     janela = _janela(est.horario, momento)
     return janela is not None and janela[0] <= momento < janela[1]
 
 
 def fecha_antes_de(est: Estacionamento, chegada: datetime, duracao_min: int) -> bool:
+    if est.horario is None:
+        return False
     janela = _janela(est.horario, chegada)
     return janela is not None and chegada + timedelta(minutes=duracao_min) > janela[1]
 
 
-def preco_estacionamento(est: Estacionamento, duracao_min: int) -> float:
-    horas = max(1, math.ceil(duracao_min / 60))
-    return round(min(horas * est.preco_hora, est.preco_diaria), 2)
+def preco_estacionamento(est: Estacionamento, duracao_min: int) -> Optional[float]:
+    """None quando o preço não é conhecido."""
+    if est.preco_hora is None:
+        return None
+    total = max(1, math.ceil(duracao_min / 60)) * est.preco_hora
+    if est.preco_diaria is not None:
+        total = min(total, est.preco_diaria)
+    return round(total, 2)

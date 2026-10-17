@@ -4,6 +4,10 @@
 export type Contexto = 'urgencia' | 'trabalho' | 'lazer';
 export type Credencial = 'nenhuma' | 'idoso' | 'pcd';
 export type TipoVaga = 'comum' | 'idoso' | 'pcd' | 'carga_descarga';
+// "a_confirmar" = estimada do mapa: pode ser EstaR ou rua livre.
+export type Regime = 'estar' | 'a_confirmar' | 'livre' | 'proibido';
+// Só "estimado" é desenhado tracejado.
+export type Situacao = 'mapeado' | 'fonte_oficial' | 'estimado' | 'confirmado_usuarios';
 
 export interface Coordenada {
   lat: number;
@@ -25,7 +29,30 @@ export interface EstadoVaga {
   rotulo: string;
 }
 
-export interface VagaNoMapa extends Coordenada {
+export interface Estimativa {
+  comprimento_m: number;
+  lados: number;
+  descontos_m: Record<string, number>;
+  fator_garagens_nao_mapeadas: number;
+  mao_unica: boolean;
+}
+
+// Como apresentar a vaga: regime, confiabilidade do dado e fonte.
+export interface Descricao {
+  regime: Regime | null;
+  situacao: Situacao;
+  tracejado: boolean;
+  rotulo_regime: string;
+  fonte: string;
+  capacidade: number;
+  capacidade_estimada: boolean;
+  estimativa: Estimativa | null;
+  preco_hora: number | null;
+  acesso: 'publico' | 'clientes' | null;
+  parceiro: boolean;
+}
+
+export interface VagaNoMapa extends Coordenada, Descricao {
   id: string;
   tipo: 'rua' | 'estacionamento';
   nome: string;
@@ -34,14 +61,15 @@ export interface VagaNoMapa extends Coordenada {
   estado: EstadoVaga;
 }
 
-export interface Candidato extends Coordenada {
+export interface Candidato extends Coordenada, Descricao {
   id: string;
   tipo: 'rua' | 'estacionamento';
   nome: string;
+  coordenadas: [number, number][] | null;
   caminhada_m: number;
   caminhada_min: number;
   tempo_carro_min: number | null;
-  preco_estimado: number;
+  preco_estimado: number | null; // null = preço não informado
   estado: EstadoVaga;
   pode_reservar: boolean;
   nota: number;
@@ -76,7 +104,21 @@ export interface Sessao {
   placa: string;
   inicio: string;
   fim_previsto: string;
-  valor_pago: number;
+  valor_pago: number | null; // null = preço não informado
   pagamento: 'simulado';
   status: 'ativa' | 'encerrada';
+}
+
+export interface ResultadoMapeamento {
+  registrado: boolean;
+  contagem: Record<string, number>;
+  aplicado: boolean;
+  faltam: number;
+  mensagem: string;
+}
+
+export interface ResultadoSugestao {
+  status: 'pendente' | 'confirmada';
+  faltam: number;
+  mensagem: string;
 }

@@ -13,6 +13,7 @@ from app.modelos import (
     Setor,
     VagaNoMapa,
 )
+from app.servicos.descricao import descrever_estacionamento, descrever_trecho
 from app.servicos.recomendacao import RAIO_PADRAO_M, recomendar
 
 router = APIRouter(tags=["vagas"])
@@ -36,18 +37,21 @@ def vagas_no_mapa(
     raio_m: int = Query(1500, ge=100, le=5000),
     estado: Estado = Depends(obter_estado),
 ):
-    """Todas as vagas (rua e estacionamentos) perto de um ponto, com o estado atual."""
+    """Todas as vagas (rua e estacionamentos) perto de um ponto, com o estado atual e a
+    descrição do dado (regime, fonte e se é só estimativa → linha tracejada no app)."""
     agora = estado.relogio()
     resultado: list[VagaNoMapa] = []
     for t in estado.catalogo.trechos():
         if distancia_m(lat, lng, t.lat, t.lng) <= raio_m:
             resultado.append(VagaNoMapa(
+                **descrever_trecho(t).model_dump(),
                 id=t.id, tipo="rua", nome=t.nome, lat=t.lat, lng=t.lng, tipo_vaga=t.tipo,
                 coordenadas=t.coordenadas, estado=estado.disponibilidade.estado(t.id, agora),
             ))
     for e in estado.catalogo.estacionamentos():
-        if distancia_m(lat, lng, e.lat, e.lng) <= raio_m:
+        if e.ativo and distancia_m(lat, lng, e.lat, e.lng) <= raio_m:
             resultado.append(VagaNoMapa(
+                **descrever_estacionamento(e).model_dump(),
                 id=e.id, tipo="estacionamento", nome=e.nome, lat=e.lat, lng=e.lng,
                 estado=estado.disponibilidade.estado(e.id, agora),
             ))

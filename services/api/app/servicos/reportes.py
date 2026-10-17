@@ -2,32 +2,29 @@
 
 import threading
 from datetime import datetime, timedelta
-from typing import Optional
 
 from app.catalogo import Catalogo
 from app.erros import ErroNegocio
-from app.geo import distancia_m
 from app.modelos import FeedbackChegada
 from app.servicos.disponibilidade import ServicoDisponibilidade, Sinal
+from app.servicos.proximidade import exigir_proximidade
 
 INTERVALO_MINIMO = timedelta(minutes=2)  # por usuário e por vaga
-DISTANCIA_MAXIMA_M = 300                 # antifraude simples: precisa estar perto da vaga
 
 
 class ServicoReportes:
-    def __init__(self, catalogo: Catalogo, disponibilidade: ServicoDisponibilidade) -> None:
+    def __init__(self, catalogo: Catalogo, disponibilidade: ServicoDisponibilidade, distancia_maxima_m: float) -> None:
         self._catalogo = catalogo
+        self._distancia_maxima_m = distancia_maxima_m
         self._disponibilidade = disponibilidade
         self._feedbacks: list[FeedbackChegada] = []
         self._lock = threading.Lock()
 
-    def reportar(self, alvo_id: str, usuario_id: str, livre: bool, agora: datetime,
-                 lat: Optional[float] = None, lng: Optional[float] = None) -> None:
-        trecho = self._catalogo.trecho(alvo_id)
-        if trecho is None:
-            raise ErroNegocio("Reportes valem só para vagas de rua", 422)
-        if lat is not None and lng is not None and distancia_m(lat, lng, trecho.lat, trecho.lng) > DISTANCIA_MAXIMA_M:
-            raise ErroNegocio("Você precisa estar perto da vaga para reportar", 422)
+    def reportar(self, alvo_id: str, usuario_id: str, livre: bool, agora: datetime, lat: float, lng: float) -> None:
+        """Antifraude simples: precisa estar perto da vaga e esperar entre um reporte e outro."""
+        if self._catalogo.trecho(alvo_id) is None:
+            raise ErroNegocio("Reportes de vaga livre/ocupada valem só para vagas de rua", 422)
+        exigir_proximidade(self._catalogo, alvo_id, lat, lng, self._distancia_maxima_m, "reportar esta vaga")
         recentes = [s for s in self._disponibilidade.sinais(alvo_id)
                     if s.usuario_id == usuario_id and s.fonte == "usuario" and agora - s.criado_em < INTERVALO_MINIMO]
         if recentes:

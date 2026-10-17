@@ -1,0 +1,32 @@
+{
+  "gerado_em": "2026-10-16",
+  "fontes": {
+    "limite": "IPPUC/GeoCuritiba — Divisa de Bairros",
+    "ruas_e_estacionamentos": "© colaboradores do OpenStreetMap (ODbL)",
+    "estar": {
+      "titulo": "Prefeitura anuncia que mais duas ruas do Batel terão vagas de EstaR",
+      "veiculo": "Banda B, com informações da Setran/Prefeitura de Curitiba",
+      "publicado_em": "2019-11-01",
+      "url": "https://www.bandab.com.br/curitiba/prefeitura-anuncia-que-mais-duas-ruas-do-batel-terao-vagas-de-estar/",
+      "observacao": "Única lista pública de trechos de EstaR no Batel que encontramos. Não há camada de EstaR no GeoCuritiba nem conjunto no portal de dados abertos. Confirmar em campo."
+    }
+  },
+  "quadras": 205,
+  "vagas_estimadas": 3663,
+  "quadras_por_regime": {
+    "a_confirmar/estimado": 182,
+    "estar/fonte_oficial": 10,
+    "estar/estimado": 13
+  },
+  "quadras_excluidas": {
+    "via expressa ou acesso": 7,
+    "quadra curta demais": 9
+  },
+  "estacionamentos": 6,
+  "estacionamentos_ignorados": {
+    "fora do Batel": 18,
+    "sem nome nem indicação de acesso público (provavelmente de prédio)": 30,
+    "acesso privado": 1,
+    "vaga de rua (já coberta pelas quadras)": 9
+  }
+}

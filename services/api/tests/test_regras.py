@@ -1,10 +1,10 @@
 from datetime import datetime
 
-from app.catalogo import CatalogoMock
+from app.catalogo import CatalogoArquivos
 from app.config import FUSO
 from app.servicos.regras import avaliar_rua, estacionamento_aberto, preco_estacionamento
 
-catalogo = CatalogoMock()
+catalogo = CatalogoArquivos()
 centro = catalogo.setor("centro")
 area_calma = catalogo.setor("centro-area-calma")
 

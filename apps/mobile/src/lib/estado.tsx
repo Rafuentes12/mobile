@@ -11,6 +11,9 @@ interface SessaoLocal {
 }
 
 interface EstadoApp {
+  // Raio (m) em que dá para iniciar estacionamento e reportar; vem da API (/saude).
+  distanciaMaximaM: number;
+  setDistanciaMaximaM: (m: number) => void;
   origem: { lat: number; lng: number; simulada: boolean } | null;
   setOrigem: (o: EstadoApp['origem']) => void;
   destino: Destino | null;
@@ -28,6 +31,7 @@ interface EstadoApp {
 const Contexto = createContext<EstadoApp | null>(null);
 
 export function ProvedorEstado({ children }: { children: ReactNode }) {
+  const [distanciaMaximaM, setDistanciaMaximaM] = useState(300);
   const [origem, setOrigem] = useState<EstadoApp['origem']>(null);
   const [destino, setDestino] = useState<Destino | null>(null);
   const [vagas, setVagas] = useState<VagaNoMapa[]>([]);
@@ -38,7 +42,7 @@ export function ProvedorEstado({ children }: { children: ReactNode }) {
   return (
     <Contexto.Provider
       value={{
-        origem, setOrigem, destino, setDestino, vagas, setVagas, recomendacao, setRecomendacao,
+        distanciaMaximaM, setDistanciaMaximaM, origem, setOrigem, destino, setDestino, vagas, setVagas, recomendacao, setRecomendacao,
         reserva, setReserva, sessaoLocal, setSessaoLocal,
       }}
     >

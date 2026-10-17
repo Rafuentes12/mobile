@@ -9,6 +9,11 @@ Contexto = Literal["urgencia", "trabalho", "lazer"]
 TipoVaga = Literal["comum", "idoso", "pcd", "carga_descarga"]
 Credencial = Literal["nenhuma", "idoso", "pcd"]
 FonteSinal = Literal["cancela", "atendente", "usuario", "saida"]
+# Regime de uma vaga de rua: "a_confirmar" = estimada do mapa, pode ser EstaR ou livre.
+Regime = Literal["estar", "a_confirmar", "livre", "proibido"]
+# De onde vem a classificação. Só "estimado" é desenhado tracejado no app.
+Situacao = Literal["mapeado", "fonte_oficial", "estimado", "confirmado_usuarios"]
+Acesso = Literal["publico", "clientes"]
 
 # Faixa de horário [hora_inicio, hora_fim) por tipo de dia; None = fechado / sem cobrança.
 Horario = dict[str, Optional[tuple[int, int]]]
@@ -38,6 +43,10 @@ class Trecho(BaseModel):
     tipo: TipoVaga
     capacidade: int
     coordenadas: list[tuple[float, float]]
+    regime: Regime = "estar"
+    situacao: Situacao = "mapeado"
+    fonte: str = "Dados fictícios do MVP"
+    estimativa: Optional[dict] = None  # como a capacidade foi estimada (trechos gerados do OSM)
 
     @property
     def lat(self) -> float:
@@ -62,14 +71,20 @@ class Estacionamento(BaseModel):
     lat: float
     lng: float
     capacidade: int
-    preco_hora: float
-    preco_diaria: float
-    parceiro_id: Optional[str]
-    aceita_reserva: bool
-    cota_reserva: int
+    preco_hora: Optional[float] = None    # None = preço não informado
+    preco_diaria: Optional[float] = None
+    parceiro_id: Optional[str] = None
+    aceita_reserva: bool = False
+    cota_reserva: int = 0
     setor_referencia: str
-    horario: Horario
+    horario: Optional[Horario] = None     # None = horário não informado
     atributos: Atributos
+    capacidade_estimada: bool = False
+    acesso: Acesso = "publico"
+    fonte: str = "Dados fictícios do MVP"
+    fonte_preco: Optional[str] = None
+    situacao: Situacao = "mapeado"
+    ativo: bool = True                    # False quando usuários confirmam que fechou
 
 
 class Parceiro(BaseModel):
@@ -97,7 +112,23 @@ class EstadoVaga(BaseModel):
     rotulo: str
 
 
-class VagaNoMapa(BaseModel):
+class Descricao(BaseModel):
+    """Como a vaga deve ser apresentada: regime, confiabilidade do dado e fonte."""
+
+    regime: Optional[Regime] = None
+    situacao: Situacao
+    tracejado: bool
+    rotulo_regime: str
+    fonte: str
+    capacidade: int
+    capacidade_estimada: bool
+    estimativa: Optional[dict] = None
+    preco_hora: Optional[float] = None
+    acesso: Optional[Acesso] = None
+    parceiro: bool = False         # estacionamento parceiro: dados vêm dele, não dos usuários
+
+
+class VagaNoMapa(Descricao):
     id: str
     tipo: Literal["rua", "estacionamento"]
     nome: str
@@ -111,16 +142,17 @@ class VagaNoMapa(BaseModel):
 # --- Recomendação --------------------------------------------------------------
 
 
-class Candidato(BaseModel):
+class Candidato(Descricao):
     id: str
     tipo: Literal["rua", "estacionamento"]
     nome: str
     lat: float
     lng: float
+    coordenadas: Optional[list[tuple[float, float]]] = None
     caminhada_m: int
     caminhada_min: int
     tempo_carro_min: Optional[int]
-    preco_estimado: float
+    preco_estimado: Optional[float]  # None = preço não informado
     estado: EstadoVaga
     pode_reservar: bool
     nota: float
@@ -166,7 +198,7 @@ class Sessao(BaseModel):
     placa: str
     inicio: datetime
     fim_previsto: datetime
-    valor_pago: float
+    valor_pago: Optional[float]  # None = preço não informado (paga direto no estacionamento)
     pagamento: Literal["simulado"] = "simulado"
     status: Literal["ativa", "encerrada"]
 
@@ -176,3 +208,35 @@ class FeedbackChegada(BaseModel):
     usuario_id: str
     encontrou: bool
     registrado_em: datetime
+
+
+# --- Mapeamento colaborativo -------------------------------------------------------------------
+
+TipoReporteTrecho = Literal["tem_estar", "sem_estar", "proibido"]
+TipoReporteEstacionamento = Literal["fechado", "preco"]
+
+
+class ResultadoMapeamento(BaseModel):
+    registrado: bool
+    contagem: dict[str, int]       # usuários distintos por resposta
+    aplicado: bool                 # a classificação mudou por consenso?
+    faltam: int                    # quantas confirmações faltam para a sua resposta valer
+    mensagem: str
+
+
+class SugestaoEstacionamento(BaseModel):
+    id: str
+    usuario_id: str
+    nome: str
+    lat: float
+    lng: float
+    preco_hora: Optional[float]
+    criada_em: datetime
+    status: Literal["pendente", "confirmada"]
+
+
+class ResultadoSugestao(BaseModel):
+    status: Literal["pendente", "confirmada"]
+    faltam: int
+    estacionamento: Optional[Estacionamento] = None
+    mensagem: str

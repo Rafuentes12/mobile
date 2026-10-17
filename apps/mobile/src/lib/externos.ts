@@ -33,6 +33,16 @@ export async function obterOrigem(): Promise<{ lat: number; lng: number; simulad
   return { ...ORIGEM_SIMULADA, simulada: true };
 }
 
+// Posição atual com boa precisão, para as ações que exigem estar perto da vaga.
+export async function posicaoAtual(): Promise<{ lat: number; lng: number }> {
+  const { status } = await Location.requestForegroundPermissionsAsync();
+  if (status !== 'granted') {
+    throw new Error('Permita o acesso à localização para confirmar que você está perto da vaga.');
+  }
+  const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+  return { lat: pos.coords.latitude, lng: pos.coords.longitude };
+}
+
 // Aviso de expiração agendado no próprio celular: funciona sem servidor (seção 7, passo 9).
 const ANTECEDENCIA_MS = 10 * 60 * 1000;
 

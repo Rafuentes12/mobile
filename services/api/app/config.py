@@ -4,6 +4,9 @@ VAGACERTA_AGORA     Data/hora inicial simulada (ISO, ex.: 2026-10-20T10:30). O r
                     avança normalmente a partir dela. Útil para demonstrar o app em
                     horário comercial mesmo testando à noite.
 VAGACERTA_CORS      Origens liberadas no CORS, separadas por vírgula (padrão: *).
+VAGACERTA_DISTANCIA_MAX_M
+                    Distância máxima (m) entre o usuário e a vaga para iniciar um
+                    estacionamento ou reportar algo sobre ela (padrão: 300).
 """
 
 import os
@@ -29,3 +32,4 @@ def criar_relogio() -> Relogio:
 
 
 CORS_ORIGENS = os.getenv("VAGACERTA_CORS", "*").split(",")
+DISTANCIA_MAXIMA_M = float(os.getenv("VAGACERTA_DISTANCIA_MAX_M", "300"))

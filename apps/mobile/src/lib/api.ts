@@ -2,10 +2,13 @@ import Constants from 'expo-constants';
 
 import type {
   Contexto,
+  Coordenada,
   Credencial,
   Destino,
   Reserva,
   RespostaRecomendacao,
+  ResultadoMapeamento,
+  ResultadoSugestao,
   Sessao,
   VagaNoMapa,
 } from './tipos';
@@ -51,6 +54,8 @@ const post = <T>(caminho: string, corpo?: unknown) =>
   chamar<T>(caminho, { method: 'POST', body: corpo === undefined ? undefined : JSON.stringify(corpo) });
 
 export const api = {
+  saude: () => chamar<{ status: string; distancia_maxima_m: number }>('/saude'),
+
   destinos: (q: string) => chamar<Destino[]>(`/destinos?${consulta({ q })}`),
 
   vagas: (lat: number, lng: number, raio_m: number) =>
@@ -78,12 +83,27 @@ export const api = {
   reservar: (estacionamento_id: string) => post<Reserva>('/reservas', { estacionamento_id }),
   cancelarReserva: (id: string) => post<Reserva>(`/reservas/${id}/cancelar`),
 
-  iniciarSessao: (alvo_id: string, placa: string, duracao_min: number) =>
-    post<Sessao>('/sessoes', { alvo_id, placa, duracao_min }),
+  // A API exige a posição atual: só dá para iniciar perto da vaga.
+  iniciarSessao: (alvo_id: string, placa: string, duracao_min: number, posicao: Coordenada) =>
+    post<Sessao>('/sessoes', { alvo_id, placa, duracao_min, ...posicao }),
   estenderSessao: (id: string, minutos: number) => post<Sessao>(`/sessoes/${id}/estender`, { minutos }),
   encerrarSessao: (id: string) => post<Sessao>(`/sessoes/${id}/encerrar`),
 
-  reportar: (alvo_id: string, livre: boolean, lat?: number, lng?: number) =>
-    post<void>('/reportes', { alvo_id, livre, lat, lng }),
+  reportar: (alvo_id: string, livre: boolean, posicao: Coordenada) =>
+    post<void>('/reportes', { alvo_id, livre, ...posicao }),
   avaliarChegada: (alvo_id: string, encontrou: boolean) => post<unknown>('/chegadas', { alvo_id, encontrou }),
+
+  // Mapeamento colaborativo (todas as ações exigem estar perto do local).
+  mapearTrecho: (trecho_id: string, tipo: 'tem_estar' | 'sem_estar' | 'proibido', posicao: Coordenada) =>
+    post<ResultadoMapeamento>(`/mapeamento/trechos/${trecho_id}`, { tipo, ...posicao }),
+  informarFechado: (estacionamento_id: string, posicao: Coordenada) =>
+    post<ResultadoMapeamento>(`/mapeamento/estacionamentos/${estacionamento_id}`, { tipo: 'fechado', ...posicao }),
+  informarPreco: (estacionamento_id: string, preco_hora: number, posicao: Coordenada) =>
+    post<ResultadoMapeamento>(`/mapeamento/estacionamentos/${estacionamento_id}`, {
+      tipo: 'preco',
+      preco_hora,
+      ...posicao,
+    }),
+  sugerirEstacionamento: (nome: string, preco_hora: number | null, posicao: Coordenada) =>
+    post<ResultadoSugestao>('/mapeamento/sugestoes', { nome, preco_hora, ...posicao }),
 };
