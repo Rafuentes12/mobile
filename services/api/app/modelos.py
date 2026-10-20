@@ -33,7 +33,6 @@ class Setor(BaseModel):
     tempo_max_min: int
     preco_fracao_15min: float
     horario_cobranca: Horario
-    perfil_ocupacao: dict[str, list[float]]  # taxa de ocupação por hora (24 valores) por tipo de dia
 
 
 class Trecho(BaseModel):
@@ -109,6 +108,9 @@ class EstadoVaga(BaseModel):
     confianca: float
     fonte: str
     atualizado_ha_min: Optional[int]
+    ao_vivo: bool                  # há sinal recente (parceiro, cancela, usuário)?
+    nivel: Literal["facil", "moderado", "dificil"]
+    explicacao: Optional[str]      # ex.: "Sexta, 22h · perto de 8 bares, 5 restaurantes"
     rotulo: str
 
 

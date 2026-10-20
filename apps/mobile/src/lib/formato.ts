@@ -9,12 +9,17 @@ export const cores = {
   talvez: '#C98500',
   ocupada: '#C62828',
   proibida: '#8A94A6',
+  // Versões claras: estimativa do modelo, sem dado ao vivo.
+  livreSuave: '#8CCBA5',
+  talvezSuave: '#E8C77A',
+  ocupadaSuave: '#E59A9A',
 };
 
-export function corPorProbabilidade(p: number): string {
-  if (p >= 0.7) return cores.livre;
-  if (p >= 0.4) return cores.talvez;
-  return cores.ocupada;
+// Cores fortes só com dado ao vivo; sem ele, as versões claras (é só estimativa).
+export function corDoEstado(estado: { nivel: 'facil' | 'moderado' | 'dificil'; ao_vivo: boolean }): string {
+  const forte = { facil: cores.livre, moderado: cores.talvez, dificil: cores.ocupada };
+  const suave = { facil: cores.livreSuave, moderado: cores.talvezSuave, dificil: cores.ocupadaSuave };
+  return (estado.ao_vivo ? forte : suave)[estado.nivel];
 }
 
 export function reais(valor: number | null): string {

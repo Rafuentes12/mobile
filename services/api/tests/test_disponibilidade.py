@@ -9,10 +9,12 @@ def servico() -> ServicoDisponibilidade:
     return ServicoDisponibilidade(CatalogoArquivos())
 
 
-def test_sem_sinais_usa_o_historico():
-    estado = servico().estado("t-01", AGORA)
-    assert estado.fonte == "historico"
-    assert estado.rotulo.startswith("Provável")
+def test_sem_sinais_usa_o_modelo_e_nao_mostra_porcentagem():
+    estado = servico().estado("t-02", AGORA)
+    assert estado.fonte == "modelo" and not estado.ao_vivo
+    assert estado.rotulo in ("Fácil (estimativa)", "Moderado (estimativa)", "Difícil (estimativa)")
+    assert "%" not in estado.rotulo
+    assert estado.explicacao.startswith("Terça, 10h")
     assert estado.atualizado_ha_min is None
 
 
@@ -23,13 +25,14 @@ def test_sinal_recente_domina_e_mostra_fonte_e_idade():
     assert estado.fonte == "atendente"
     assert estado.vagas_livres_estimadas == 12
     assert estado.rotulo == "12 vagas · atendente · há 2 min"
+    assert estado.ao_vivo
 
 
 def test_reporte_de_usuario_perde_forca_em_minutos():
     s = servico()
     s.registrar(Sinal(alvo_id="t-01", fonte="usuario", criado_em=AGORA, livre=True))
     assert s.estado("t-01", AGORA).fonte == "usuario"
-    assert s.estado("t-01", AGORA + timedelta(minutes=10)).fonte == "historico"
+    assert s.estado("t-01", AGORA + timedelta(minutes=10)).fonte == "modelo"
 
 
 def test_estacionamento_lotado():

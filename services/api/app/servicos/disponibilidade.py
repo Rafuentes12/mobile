@@ -2,7 +2,8 @@
 
 Cada sinal tem uma confiança inicial que cai pela metade a cada "meia-vida"
 (um reporte de usuário vale minutos; uma contagem de cancela, um pouco mais).
-O histórico (perfil de ocupação por hora, o "modelo v0") preenche as lacunas.
+Sem sinal ao vivo, vale o modelo de demanda (estabelecimentos reais do OSM + Erlang B,
+ver demanda.py), apresentado como "Fácil / Moderado / Difícil (estimativa)".
 O app mostra a fonte e a idade da informação para ser honesto sobre a incerteza.
 """
 
@@ -14,7 +15,7 @@ from typing import Optional
 from app.catalogo import Catalogo
 from app.erros import ErroNegocio
 from app.modelos import EstadoVaga, FonteSinal
-from app.servicos.regras import tipo_de_dia
+from app.servicos.demanda import ModeloDemanda, nivel
 
 
 @dataclass(frozen=True)
@@ -30,7 +31,8 @@ FONTES: dict[str, ConfigFonte] = {
     "saida": ConfigFonte(0.70, 4, "vaga liberada por usuário"),
     "usuario": ConfigFonte(0.60, 3, "reporte de usuário"),
 }
-PESO_HISTORICO = 0.30
+PESO_MODELO = 0.30
+TEXTO_NIVEL = {"facil": "Fácil", "moderado": "Moderado", "dificil": "Difícil"}
 PESO_MINIMO = 0.05  # abaixo disso o sinal é considerado vencido
 
 
@@ -59,13 +61,14 @@ def _texto_idade(minutos: float) -> str:
 
 
 class ServicoDisponibilidade:
-    def __init__(self, catalogo: Catalogo) -> None:
+    def __init__(self, catalogo: Catalogo, modelo: Optional[ModeloDemanda] = None) -> None:
         self._catalogo = catalogo
+        self._modelo = modelo or ModeloDemanda(catalogo)
         self._sinais: dict[str, list[Sinal]] = {}
         self._lock = threading.Lock()
 
     def registrar(self, sinal: Sinal) -> None:
-        if not self._capacidade_e_setor(sinal.alvo_id):
+        if self._capacidade(sinal.alvo_id) is None:
             raise ErroNegocio(f"Vaga '{sinal.alvo_id}' não existe", 404)
         with self._lock:
             self._sinais.setdefault(sinal.alvo_id, []).append(sinal)
@@ -74,29 +77,20 @@ class ServicoDisponibilidade:
         with self._lock:
             return list(self._sinais.get(alvo_id, []))
 
-    def _capacidade_e_setor(self, alvo_id: str) -> Optional[tuple[int, str]]:
-        trecho = self._catalogo.trecho(alvo_id)
-        if trecho:
-            return trecho.capacidade, trecho.setor_id
-        est = self._catalogo.estacionamento(alvo_id)
-        if est:
-            return est.capacidade, est.setor_referencia
-        return None
+    def _capacidade(self, alvo_id: str) -> Optional[int]:
+        alvo = self._catalogo.trecho(alvo_id) or self._catalogo.estacionamento(alvo_id)
+        return alvo.capacidade if alvo else None
 
     def estado(self, alvo_id: str, agora: datetime, momento: Optional[datetime] = None) -> EstadoVaga:
         """Estado da vaga previsto para `momento` (ex.: horário de chegada), visto em `agora`."""
         momento = momento or agora
-        dados = self._capacidade_e_setor(alvo_id)
-        if dados is None:
+        capacidade = self._capacidade(alvo_id)
+        if capacidade is None:
             raise ErroNegocio(f"Vaga '{alvo_id}' não existe", 404)
-        capacidade, setor_id = dados
 
-        # Modelo v0: perfil histórico de ocupação do setor na hora prevista.
-        setor = self._catalogo.setor(setor_id)
-        ocupacao = setor.perfil_ocupacao[tipo_de_dia(momento)][momento.hour] if setor else 0.8
-        # Aproximação: vagas vizinhas não são independentes, por isso capacidade/3.
-        p_historico = 1 - ocupacao ** max(1.0, capacidade / 3)
-        livres_historico = round(capacidade * (1 - ocupacao))
+        # Modelo v1: demanda dos estabelecimentos próximos no horário previsto + Erlang B.
+        estimativa = self._modelo.estimar(alvo_id, capacidade, momento)
+        p_modelo = estimativa.prob_livre
 
         melhor: Optional[tuple[float, Sinal]] = None
         for sinal in self.sinais(alvo_id):
@@ -107,25 +101,29 @@ class ServicoDisponibilidade:
             if peso >= PESO_MINIMO and (melhor is None or peso > melhor[0]):
                 melhor = (peso, sinal)
 
-        if melhor is None or melhor[0] < PESO_HISTORICO:
-            p = p_historico
+        if melhor is None or melhor[0] < PESO_MODELO:
+            p = p_modelo
             if melhor is not None:  # sinal fraco ainda puxa um pouco a estimativa
-                p = (melhor[0] * self._prob_sinal(melhor[1]) + PESO_HISTORICO * p_historico) / (melhor[0] + PESO_HISTORICO)
+                p = (melhor[0] * self._prob_sinal(melhor[1]) + PESO_MODELO * p_modelo) / (melhor[0] + PESO_MODELO)
+            dificuldade = nivel(p)
             return EstadoVaga(
                 prob_livre=round(p, 2),
-                vagas_livres_estimadas=livres_historico,
-                confianca=PESO_HISTORICO,
-                fonte="historico",
+                vagas_livres_estimadas=estimativa.vagas_livres,
+                confianca=PESO_MODELO,
+                fonte="modelo",
                 atualizado_ha_min=None,
-                rotulo=f"Provável {round(p * 100)}% · histórico",
+                ao_vivo=False,
+                nivel=dificuldade,
+                explicacao=estimativa.explicacao,
+                rotulo=f"{TEXTO_NIVEL[dificuldade]} (estimativa)",
             )
 
         peso, sinal = melhor
         p_sinal = self._prob_sinal(sinal)
-        p = (peso * p_sinal + PESO_HISTORICO * p_historico) / (peso + PESO_HISTORICO)
+        p = (peso * p_sinal + PESO_MODELO * p_modelo) / (peso + PESO_MODELO)
         idade_agora = _idade_min(sinal.criado_em, agora)
         rotulo_fonte = FONTES[sinal.fonte].rotulo
-        livres = sinal.vagas_livres if sinal.vagas_livres is not None else livres_historico
+        livres = sinal.vagas_livres if sinal.vagas_livres is not None else estimativa.vagas_livres
 
         if sinal.vagas_livres is not None:
             texto = f"{livres} vagas" if livres != 1 else "1 vaga"
@@ -142,6 +140,9 @@ class ServicoDisponibilidade:
             confianca=round(peso, 2),
             fonte=sinal.fonte,
             atualizado_ha_min=int(idade_agora),
+            ao_vivo=True,
+            nivel=nivel(p),
+            explicacao=estimativa.explicacao,
             rotulo=f"{texto} · {rotulo_fonte} · {_texto_idade(idade_agora)}",
         )
 

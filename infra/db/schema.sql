@@ -16,8 +16,7 @@ CREATE TABLE setores_estar (
     cidade_id       text NOT NULL REFERENCES cidades (id),
     nome            text NOT NULL,
     geom            geography (Polygon, 4326),
-    regras          jsonb NOT NULL, -- tempo_max_min, preco_fracao_15min, horario_cobranca
-    perfil_ocupacao jsonb NOT NULL  -- modelo v0: ocupação média por hora e tipo de dia
+    regras          jsonb NOT NULL  -- tempo_max_min, preco_fracao_15min, horario_cobranca
 );
 
 CREATE TABLE trechos_vaga (

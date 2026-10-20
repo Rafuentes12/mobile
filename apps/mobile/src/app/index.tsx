@@ -17,7 +17,7 @@ import { Botao } from '@/componentes/Botao';
 import { api } from '@/lib/api';
 import { duracaoMs, useApp } from '@/lib/estado';
 import { obterOrigem } from '@/lib/externos';
-import { cores, corPorProbabilidade, hora, reais } from '@/lib/formato';
+import { cores, corDoEstado, hora, reais } from '@/lib/formato';
 import { RAIO_VAGAS_M, REGIAO_PILOTO } from '@/lib/regiao';
 import type { Contexto, Credencial, Destino, VagaNoMapa } from '@/lib/tipos';
 
@@ -212,7 +212,7 @@ export default function TelaMapa() {
             {recomendacao.mensagem && <Text style={estilos.nota}>{recomendacao.mensagem}</Text>}
             {recomendacao.candidatos.map((c, i) => (
               <Pressable key={c.id} style={estilos.item} onPress={() => router.push(`/vaga/${c.id}`)}>
-                <View style={[estilos.indicador, { backgroundColor: corPorProbabilidade(c.estado.prob_livre) }]} />
+                <View style={[estilos.indicador, { backgroundColor: corDoEstado(c.estado) }]} />
                 <View style={{ flex: 1 }}>
                   <Text style={estilos.itemNome} numberOfLines={1}>
                     {i + 1}. {c.nome}
@@ -237,7 +237,7 @@ export default function TelaMapa() {
         )}
         {destino && !carregando && <Botao titulo="Atualizar recomendação" variante="secundario" onPress={() => recomendar(filtrosAtuais)} />}
         <View style={estilos.rodape}>
-          <Text style={estilos.legenda}>━━ confirmado   ┅┅ estimado do mapa</Text>
+          <Text style={estilos.legenda}>━━ confirmado  ┅┅ estimado · cor clara = estimativa</Text>
           <Pressable onPress={() => router.push('/sugerir')} hitSlop={8}>
             <Text style={estilos.link}>+ Sugerir estacionamento</Text>
           </Pressable>
@@ -252,7 +252,7 @@ export default function TelaMapa() {
 }
 
 function corDaVaga(v: VagaNoMapa): string {
-  return v.regime === 'proibido' ? cores.proibida : corPorProbabilidade(v.estado.prob_livre);
+  return v.regime === 'proibido' ? cores.proibida : corDoEstado(v.estado);
 }
 
 function Chips<T extends string | number>({

@@ -13,6 +13,9 @@ export interface EstadoVaga {
   confianca: number;
   fonte: string;
   atualizado_ha_min: number | null;
+  ao_vivo: boolean;
+  nivel: "facil" | "moderado" | "dificil";
+  explicacao: string | null;
   rotulo: string;
 }
 

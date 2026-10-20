@@ -7,7 +7,9 @@ Esqueleto do app de vagas de estacionamento em tempo real para Curitiba, seguind
 > - **Batel** — 205 trechos de rua (~3.660 vagas estimadas) e estacionamentos reais, gerados de dados abertos
 >   (OpenStreetMap, IPPUC e lista de EstaR da Setran). Ver [Batel com dados reais](#batel-com-dados-reais).
 > - **Centro** — trechos com traçado real, mas EstaR, capacidades e os estacionamentos parceiros ("Demo") são fictícios.
-> - Em ambos, a **ocupação** ("Provável 70% · histórico") ainda é um perfil ilustrativo, até as contagens de campo.
+> - Em ambos, sem dado ao vivo a **disponibilidade** vem de um modelo com estabelecimentos reais do OSM
+>   (bares, restaurantes, comércio...) e a fórmula de Erlang B, mostrado como "Fácil / Moderado / Difícil
+>   (estimativa)". Os parâmetros ainda são suposições a calibrar — ver [services/ml/README.md](services/ml/README.md).
 > - Nenhum pagamento é cobrado. Nada é publicado nas lojas: o app roda no **Expo Go**.
 
 ## Estrutura
@@ -18,7 +20,7 @@ vagacerta/
                     #   (SDK 57 porque é o que o Expo Go da App Store suporta hoje)
 ├── apps/web        # Painel do parceiro — Next.js 16
 ├── services/api    # API — Python 3.12 + FastAPI (monólito modular, dados em memória)
-├── services/ml     # Notas do modelo de ocupação (v0 = perfil por hora nos mocks)
+├── services/ml     # Notas e calibração do modelo de disponibilidade (v1 = estabelecimentos + Erlang B)
 └── infra/          # PRÓXIMA FASE: PostGIS, Redis e OSRM (não usados pelo MVP)
 ```
 
@@ -93,8 +95,9 @@ VAGACERTA_DISTANCIA_MAX_M=20000 .venv/bin/uvicorn app.main:app --reload --host 0
 | Recomendação por contexto (urgência, trabalho, lazer), duração e credencial (idoso/PCD) | `api/app/servicos/recomendacao.py` |
 | Regras do EstaR: tempo máximo (2 h; 1 h na área calma), horário de cobrança, frações de 15 min | `api/app/servicos/regras.py` |
 | Fusão de sinais com fonte e idade ("Livre agora · reporte de usuário · há 1 min") | `api/app/servicos/disponibilidade.py` |
+| Sem dado ao vivo: demanda dos estabelecimentos do OSM por dia e hora + Erlang B ("Difícil (estimativa)") | `api/app/servicos/demanda.py` |
 | Reserva de 10 min **só em parceiros**, com cota por estacionamento | `api/app/servicos/reservas.py` |
-| Navegação pelo Waze ou Google Maps (deep link, sem custo de API) | `mobile/src/lib/externos.ts` |
+| Navegação pelo Waze, Google Maps ou Apple Maps (no iPhone), por deep link e sem custo de API | `mobile/src/lib/externos.ts` |
 | Sessão com pagamento simulado, aviso local 10 min antes do fim, estender e encerrar | `mobile/src/app/sessao.tsx` |
 | Encerrar sessão de rua avisa outros motoristas ("vaga liberada") | `api/app/servicos/sessoes.py` |
 | Crowdsourcing "livre/ocupada" com antifraude simples (distância e intervalo) | `api/app/servicos/reportes.py` |
@@ -143,6 +146,12 @@ cd services/api
 
 O resumo da geração (fontes, contagens, quadras excluídas) fica em `app/dados_osm/batel_metadados.json`.
 
+Os estabelecimentos usados pelo modelo de disponibilidade (Centro e Batel) vêm de outro script:
+
+```bash
+.venv/bin/python scripts/baixar_pois_osm.py   # grava app/dados_osm/pois.json
+```
+
 ## Trechos de rua do Centro (OpenStreetMap)
 
 O traçado das vagas de rua do Centro também vem do OpenStreetMap. A equipe descreve cada trecho como
@@ -162,8 +171,10 @@ Dados © colaboradores do OpenStreetMap (licença ODbL): o crédito aparece no a
 
 ## Verificações
 
+Roteiro de testes manuais do app: [docs/ROTEIRO_DE_TESTES.md](docs/ROTEIRO_DE_TESTES.md).
+
 ```bash
-cd services/api && .venv/bin/python -m pytest      # 55 testes
+cd services/api && .venv/bin/python -m pytest      # 62 testes
 cd apps/mobile && npx tsc --noEmit && npx expo lint
 cd apps/web && npx tsc --noEmit && npm run lint && npm run build
 ```
@@ -178,5 +189,5 @@ cd apps/web && npx tsc --noEmit && npm run lint && npm run build
 5. **Login:** Supabase Auth; a API passa a validar o JWT em vez do cabeçalho `X-Usuario-Id`.
 6. **Tipos compartilhados:** gerar `apps/*/src/lib/tipos.ts` do OpenAPI (`openapi-typescript`).
 7. **Contagens de campo no Batel:** conferir o EstaR quadra a quadra e calibrar o fator de garagens
-   (hoje 0,75) e o perfil de ocupação do setor `batel`.
+   (hoje 0,75) e os parâmetros do modelo de demanda (ver `services/ml/README.md`).
 8. **Guardar o mapeamento colaborativo:** hoje os reportes vivem em memória e somem ao reiniciar a API.

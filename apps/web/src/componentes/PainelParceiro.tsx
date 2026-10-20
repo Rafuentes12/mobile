@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { api, type EstacionamentoNoPainel, type Metricas, type Parceiro } from "@/lib/api";
+import { api, type EstacionamentoNoPainel, type EstadoVaga, type Metricas, type Parceiro } from "@/lib/api";
 
 const INTERVALO_ATUALIZACAO_MS = 15_000;
 
@@ -10,10 +10,8 @@ function horaCurta(iso: string) {
   return new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 
-function classeDoEstado(prob: number) {
-  if (prob >= 0.7) return "livre";
-  if (prob >= 0.4) return "talvez";
-  return "ocupada";
+function classeDoEstado(nivel: EstadoVaga["nivel"]) {
+  return { facil: "livre", moderado: "talvez", dificil: "ocupada" }[nivel];
 }
 
 export function PainelParceiro() {
@@ -130,7 +128,7 @@ function CartaoEstacionamento({
         </p>
       </header>
 
-      <p className={`estado ${classeDoEstado(estado.prob_livre)}`}>{estado.rotulo}</p>
+      <p className={`estado ${classeDoEstado(estado.nivel)}`}>{estado.rotulo}</p>
 
       <div className="controle">
         <span>Vagas livres agora</span>

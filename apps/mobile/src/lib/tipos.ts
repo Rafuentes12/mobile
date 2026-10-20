@@ -26,6 +26,9 @@ export interface EstadoVaga {
   confianca: number;
   fonte: string;
   atualizado_ha_min: number | null;
+  ao_vivo: boolean; // há sinal recente (parceiro, cancela, usuário)?
+  nivel: 'facil' | 'moderado' | 'dificil';
+  explicacao: string | null; // ex.: "Sexta, 22h · perto de 8 bares, 5 restaurantes"
   rotulo: string;
 }
 
