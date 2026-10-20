@@ -1,12 +1,12 @@
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Botao } from '@/componentes/Botao';
 import { api } from '@/lib/api';
 import { duracaoMs, useApp } from '@/lib/estado';
 import { abrirNavegacao, agendarAvisoDeExpiracao, posicaoAtual } from '@/lib/externos';
-import { cores, corPorProbabilidade, distanciaAteLinha, distanciaKm, hora, metros, reais } from '@/lib/formato';
+import { cores, corDoEstado, distanciaAteLinha, distanciaKm, hora, metros, reais } from '@/lib/formato';
 import { RAIO_VAGAS_M, REGIAO_PILOTO } from '@/lib/regiao';
 import type { Coordenada, Estimativa } from '@/lib/tipos';
 
@@ -24,6 +24,7 @@ export default function TelaVaga() {
     useApp();
   const [placa, setPlaca] = useState('ABC1D23');
   const [preco, setPreco] = useState('');
+  const [detalhesAbertos, setDetalhesAbertos] = useState(false);
   const [ocupado, setOcupado] = useState<string | null>(null);
   const [posicao, setPosicao] = useState<Coordenada | null>(null);
   const [erroPosicao, setErroPosicao] = useState<string | null>(null);
@@ -156,12 +157,19 @@ export default function TelaVaga() {
       <View style={[estilos.selo, vaga.tracejado && estilos.seloTracejado]}>
         <Text style={estilos.seloTexto}>{vaga.rotulo_regime}</Text>
       </View>
-      <View style={[estilos.estado, { borderLeftColor: corPorProbabilidade(vaga.estado.prob_livre) }]}>
+      <View style={[estilos.estado, { borderLeftColor: corDoEstado(vaga.estado) }]}>
         <Text style={estilos.estadoRotulo}>{vaga.estado.rotulo}</Text>
-        <Text style={estilos.suave}>
-          Chance estimada de vaga: {Math.round(vaga.estado.prob_livre * 100)}% · confiança{' '}
-          {Math.round(vaga.estado.confianca * 100)}%
-        </Text>
+        {vaga.estado.ao_vivo ? (
+          <Text style={estilos.suave}>
+            Chance de vaga: {Math.round(vaga.estado.prob_livre * 100)}% · confiança{' '}
+            {Math.round(vaga.estado.confianca * 100)}%
+          </Text>
+        ) : (
+          <Text style={estilos.suave}>
+            Sem dado ao vivo: estimativa pelo horário e pelos estabelecimentos por perto.
+          </Text>
+        )}
+        {vaga.estado.explicacao && <Text style={estilos.suave}>{vaga.estado.explicacao}</Text>}
       </View>
 
       <View style={estilos.bloco}>
@@ -169,8 +177,30 @@ export default function TelaVaga() {
           {vaga.capacidade_estimada ? '~' : ''}
           {vaga.capacidade} vagas{vaga.capacidade_estimada ? ' (estimativa)' : ''}
         </Text>
-        <Text style={estilos.suave}>Fonte: {vaga.fonte}</Text>
-        {vaga.estimativa && <TextoEstimativa estimativa={vaga.estimativa} />}
+        <Pressable onPress={() => setDetalhesAbertos((aberto) => !aberto)} hitSlop={8} accessibilityRole="button">
+          <Text style={estilos.link}>{detalhesAbertos ? 'Ocultar detalhes ▴' : 'Ver detalhes da estimativa ▾'}</Text>
+        </Pressable>
+        {detalhesAbertos && (
+          <>
+            <Text style={estilos.suave}>Fonte: {vaga.fonte}</Text>
+            {vaga.estimativa && <TextoEstimativa estimativa={vaga.estimativa} />}
+            {candidato && (
+              <>
+                <Text style={[estilos.subtitulo, { marginTop: 4 }]}>
+                  Por que esta posição (nota {candidato.nota.toFixed(2)})
+                </Text>
+                {Object.entries(candidato.componentes).map(([chave, valor]) => (
+                  <View key={chave} style={estilos.barraLinha}>
+                    <Text style={estilos.barraNome}>{NOMES_COMPONENTES[chave] ?? chave}</Text>
+                    <View style={estilos.barraFundo}>
+                      <View style={[estilos.barra, { width: `${Math.round(valor * 100)}%` }]} />
+                    </View>
+                  </View>
+                ))}
+              </>
+            )}
+          </>
+        )}
       </View>
 
       {candidato && (
@@ -187,22 +217,16 @@ export default function TelaVaga() {
           {candidato.avisos.map((a) => (
             <Text key={a} style={estilos.aviso}>! {a}</Text>
           ))}
-          <Text style={[estilos.subtitulo, { marginTop: 8 }]}>Por que esta posição (nota {candidato.nota.toFixed(2)})</Text>
-          {Object.entries(candidato.componentes).map(([chave, valor]) => (
-            <View key={chave} style={estilos.barraLinha}>
-              <Text style={estilos.barraNome}>{NOMES_COMPONENTES[chave] ?? chave}</Text>
-              <View style={estilos.barraFundo}>
-                <View style={[estilos.barra, { width: `${Math.round(valor * 100)}%` }]} />
-              </View>
-            </View>
-          ))}
         </View>
       )}
 
       <Text style={estilos.subtitulo}>Ir até a vaga</Text>
       <View style={estilos.linha}>
-        <Botao titulo="Waze" onPress={() => abrirNavegacao('waze', vaga.lat, vaga.lng)} />
-        <Botao titulo="Google Maps" onPress={() => abrirNavegacao('google', vaga.lat, vaga.lng)} />
+        <Botao compacto titulo="Waze" onPress={() => abrirNavegacao('waze', vaga.lat, vaga.lng)} />
+        <Botao compacto titulo="Google Maps" onPress={() => abrirNavegacao('google', vaga.lat, vaga.lng)} />
+        {Platform.OS === 'ios' && (
+          <Botao compacto titulo="Apple Maps" onPress={() => abrirNavegacao('apple', vaga.lat, vaga.lng)} />
+        )}
       </View>
 
       {!ehRua && (candidato?.pode_reservar || reservaDestaVaga) && (
@@ -224,13 +248,9 @@ export default function TelaVaga() {
       )}
       {ehRua && <Text style={estilos.suave}>Vagas de rua são espaço público e não podem ser reservadas.</Text>}
 
-      <Text style={estilos.subtitulo}>Estacionar (pagamento simulado)</Text>
+      <Text style={estilos.subtitulo}>Estacionar</Text>
       <View style={estilos.bloco}>
-        <Text style={estilos.suave}>
-          {ehRua
-            ? 'No MVP nada é cobrado. Na versão real, o EstaR é pago por um app homologado pela URBS.'
-            : 'No MVP nada é cobrado. Na versão real, o pagamento será por Pix ou cartão.'}
-        </Text>
+        <Text style={estilos.suave}>Por enquanto, nada é cobrado.</Text>
         <TextInput
           value={placa}
           onChangeText={(t) => setPlaca(t.toUpperCase())}
@@ -333,6 +353,7 @@ const estilos = StyleSheet.create({
   estado: { backgroundColor: '#fff', borderRadius: 10, padding: 12, borderLeftWidth: 6, gap: 4 },
   estadoRotulo: { fontSize: 16, fontWeight: '600', color: cores.texto },
   bloco: { backgroundColor: '#fff', borderRadius: 10, padding: 12, gap: 8 },
+  link: { fontSize: 14, color: cores.azul, fontWeight: '600' },
   motivo: { fontSize: 14, color: cores.livre },
   aviso: { fontSize: 14, color: cores.talvez },
   linha: { flexDirection: 'row', gap: 10 },

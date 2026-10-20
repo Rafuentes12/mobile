@@ -4,14 +4,17 @@ import * as Notifications from 'expo-notifications';
 
 import { distanciaKm } from './formato';
 
-// Navegação curva a curva fica com o Waze/Google Maps (planejamento, seção 8):
-// sem custo de API e o motorista já conhece esses apps.
-export function abrirNavegacao(app: 'waze' | 'google', lat: number, lng: number) {
-  const url =
-    app === 'waze'
-      ? `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`
-      : `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
-  return Linking.openURL(url);
+// Navegação curva a curva fica com o app que o motorista já usa (planejamento, seção 8):
+// sem custo de API. O Apple Maps só existe no iPhone.
+const LINKS_NAVEGACAO = {
+  waze: (lat: number, lng: number) => `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`,
+  google: (lat: number, lng: number) =>
+    `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`,
+  apple: (lat: number, lng: number) => `https://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`,
+};
+
+export function abrirNavegacao(app: keyof typeof LINKS_NAVEGACAO, lat: number, lng: number) {
+  return Linking.openURL(LINKS_NAVEGACAO[app](lat, lng));
 }
 
 // Se a pessoa não está em Curitiba (ou negou a localização), simulamos uma origem
@@ -39,7 +42,19 @@ export async function posicaoAtual(): Promise<{ lat: number; lng: number }> {
   if (status !== 'granted') {
     throw new Error('Permita o acesso à localização para confirmar que você está perto da vaga.');
   }
-  const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+  let pos: Location.LocationObject | null = null;
+  try {
+    pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+  } catch {
+    // GPS sem sinal (ou simulador sem localização definida): tenta a última posição conhecida.
+    pos = await Location.getLastKnownPositionAsync({ maxAge: 5 * 60 * 1000 }).catch(() => null);
+  }
+  if (!pos) {
+    throw new Error(
+      'Não consegui obter sua localização. Verifique se o GPS está ligado ' +
+        '(no simulador: Features → Location → Custom Location).',
+    );
+  }
   return { lat: pos.coords.latitude, lng: pos.coords.longitude };
 }
 

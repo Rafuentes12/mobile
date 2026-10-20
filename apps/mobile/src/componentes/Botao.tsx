@@ -8,9 +8,10 @@ interface Props {
   variante?: 'principal' | 'secundario' | 'perigo';
   carregando?: boolean;
   desabilitado?: boolean;
+  compacto?: boolean; // fonte menor, para vários botões numa linha só
 }
 
-export function Botao({ titulo, onPress, variante = 'principal', carregando, desabilitado }: Props) {
+export function Botao({ titulo, onPress, variante = 'principal', carregando, desabilitado, compacto }: Props) {
   const inativo = desabilitado || carregando;
   return (
     <Pressable
@@ -20,13 +21,19 @@ export function Botao({ titulo, onPress, variante = 'principal', carregando, des
       style={({ pressed }) => [
         estilos.base,
         estilos[variante],
+        compacto && estilos.compacto,
         (pressed || inativo) && { opacity: 0.6 },
       ]}
     >
       {carregando ? (
         <ActivityIndicator color={variante === 'secundario' ? cores.azul : '#fff'} />
       ) : (
-        <Text style={[estilos.texto, variante === 'secundario' && { color: cores.azul }]}>{titulo}</Text>
+        <Text
+          numberOfLines={1}
+          style={[estilos.texto, compacto && estilos.textoCompacto, variante === 'secundario' && { color: cores.azul }]}
+        >
+          {titulo}
+        </Text>
       )}
     </Pressable>
   );
@@ -38,4 +45,6 @@ const estilos = StyleSheet.create({
   secundario: { backgroundColor: '#fff', borderWidth: 1, borderColor: cores.azul },
   perigo: { backgroundColor: cores.ocupada },
   texto: { color: '#fff', fontWeight: '600', fontSize: 15 },
+  compacto: { paddingHorizontal: 6 },
+  textoCompacto: { fontSize: 13 },
 });
